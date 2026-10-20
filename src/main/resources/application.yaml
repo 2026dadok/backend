@@ -1,3 +1,32 @@
 spring:
-  application:
-    name: dadok
+  datasource:
+    url: jdbc:mysql://localhost:3306/dadok?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    username: root
+    password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: guji253714@guji.ms.kr
+    password: xdtm afkb nhkd wlzo
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+jwt:
+  secret: v9y$B&E)H@McQfTjWnZr4u7x!A%C*F-JaNdRgUkXp2s5v8y/B?E(G+KbPeShVmYq
+  access-token-expiration: 3600000     # 1시간 (ms)
+  refresh-token-expiration: 1209600000 # 14일 (ms)
