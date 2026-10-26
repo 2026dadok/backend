@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 // 유저별 게임 기록 (XP, 사용 중인 칭호)
-// User(로그인용)는 건드리지 않고, 여기서 User를 가리키기만 함
 @Entity
 @Table(name = "user_stats")
 @Getter

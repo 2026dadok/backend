@@ -26,7 +26,7 @@ public class QuestService {
     private final UserQuestRepository userQuestRepository;
     private final UserStatRepository userStatRepository;
 
-    // ───── 출석 (POST /quests/attendance) ─────
+    // 출석 (POST /quests/attendance)
     public AttendanceResponse attend(String email) {
         User user = userStatRepository.findUserByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
@@ -45,7 +45,21 @@ public class QuestService {
         return new AttendanceResponse("출석 완료!", gainedXp);
     }
 
-    // ───── 퀘스트 완료 공통 처리 ─────
+    // 독서 시간 퀘스트 (30분 / 2시간)
+    // 독서 시간이 저장될 때마다 ReadingService가 부름
+    // todaySeconds: 오늘 읽은 시간 합계 (초)
+    public int checkReadTimeQuests(User user, long todaySeconds, LocalDate today) {
+        int gainedXp = 0;
+        for (Quest quest : questRepository.findAllByConditionType(QuestCondition.READ_MINUTES)) {
+            long targetSeconds = quest.getTargetValue() * 60L;   // 30분 → 1800초
+            if (todaySeconds >= targetSeconds && !isCompleted(user, quest, today)) {
+                gainedXp += complete(user, quest, today);
+            }
+        }
+        return gainedXp;
+    }
+
+    // 퀘스트 완료 공통 처리
     // 출석뿐 아니라 독서 시간, 책 등록 등 다른 기능에서도 이걸 부름
     // 반환값: 이번에 받은 XP 합계
     public int complete(User user, Quest quest, LocalDate periodStart) {
