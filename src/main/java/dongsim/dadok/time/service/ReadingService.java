@@ -5,6 +5,7 @@ import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.quest.service.QuestService;
 import dongsim.dadok.time.domain.dto.ReadTimeRequest;
 import dongsim.dadok.time.domain.dto.ReadTimeResponse;
+import dongsim.dadok.time.domain.dto.TimerPageResponse;
 import dongsim.dadok.time.domain.entity.ReadingLog;
 import dongsim.dadok.time.domain.repository.ReadingLogRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +32,7 @@ public class ReadingService {
 
     // 독서 시간 저장 (POST /times)
     public ReadTimeResponse saveReadTime(String email, ReadTimeRequest request) {
-        User user = userStatRepository.findUserByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
+        User user = findUser(email);
 
         LocalDateTime now = LocalDateTime.now(KST);
         LocalDate today = now.toLocalDate();
@@ -51,5 +51,19 @@ public class ReadingService {
         questService.checkReadTimeQuests(user, todaySeconds, today);
 
         return new ReadTimeResponse("독서 시간이 저장되었습니다.", todaySeconds);
+    }
+
+    // 타이머 페이지 (GET /times/timer_page)
+    @Transactional(readOnly = true)
+    public TimerPageResponse getTimerPage(String email) {
+        User user = findUser(email);
+        long goalSeconds = user.getDefaultTimerTime() * 60L;   // 분 → 초
+        long todaySeconds = readingLogRepository.sumSecondsByUserAndDate(user, LocalDate.now(KST));
+        return new TimerPageResponse(goalSeconds, todaySeconds);
+    }
+
+    private User findUser(String email) {
+        return userStatRepository.findUserByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 }

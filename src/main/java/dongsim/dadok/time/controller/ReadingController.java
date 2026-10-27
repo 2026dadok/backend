@@ -2,6 +2,7 @@ package dongsim.dadok.time.controller;
 
 import dongsim.dadok.time.domain.dto.ReadTimeRequest;
 import dongsim.dadok.time.domain.dto.ReadTimeResponse;
+import dongsim.dadok.time.domain.dto.TimerPageResponse;
 import dongsim.dadok.time.service.ReadingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,5 +22,11 @@ public class ReadingController {
     public ResponseEntity<ReadTimeResponse> saveReadTime(Authentication authentication,
                                                          @Valid @RequestBody ReadTimeRequest request) {
         return ResponseEntity.ok(readingService.saveReadTime(authentication.getName(), request));
+    }
+
+    // 타이머 페이지: 목표 시간, 오늘 읽은 시간
+    @GetMapping("/timer_page")
+    public ResponseEntity<TimerPageResponse> getTimerPage(Authentication authentication) {
+        return ResponseEntity.ok(readingService.getTimerPage(authentication.getName()));
     }
 }
