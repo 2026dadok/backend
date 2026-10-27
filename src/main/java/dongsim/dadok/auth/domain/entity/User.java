@@ -1,9 +1,10 @@
 package dongsim.dadok.auth.domain.entity;
 
+import dongsim.dadok.auth.domain.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
-import javax.management.relation.Role;
+
 import java.time.LocalDate;
 
 @Entity
