@@ -2,6 +2,8 @@ package dongsim.dadok.quest.service;
 
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.quest.domain.dto.AttendanceResponse;
+import dongsim.dadok.quest.domain.dto.DailyQuestResponse;
+import dongsim.dadok.quest.domain.dto.WeeklyQuestResponse;
 import dongsim.dadok.quest.domain.entity.*;
 import dongsim.dadok.quest.domain.repository.QuestRepository;
 import dongsim.dadok.quest.domain.repository.UserQuestRepository;
@@ -12,8 +14,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -91,6 +98,37 @@ public class QuestService {
         }
         userQuestRepository.save(UserQuest.completed(user, allClear, today));
         return giveXp(user, allClear.getRewardXp());
+    }
+
+    // 오늘의 일일 퀘스트 목록 + 완료 여부 (마지막 항목: 전체 완료 보상)
+    @Transactional(readOnly = true)
+    public List<DailyQuestResponse> getDailyQuests(User user) {
+        LocalDate today = LocalDate.now(KST);
+        return questRepository.findAllByPeriod(QuestPeriod.DAILY).stream()
+                .sorted(Comparator.comparing(Quest::getId))
+                .map(q -> new DailyQuestResponse(q.getId(), q.getTitle(), q.getRewardXp(), isCompleted(user, q, today)))
+                .toList();
+    }
+
+    // 이번 주 주간 퀘스트 + 진행도 (없으면 null)
+    @Transactional(readOnly = true)
+    public WeeklyQuestResponse getWeeklyQuest(User user) {
+        LocalDate monday = LocalDate.now(KST).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        return questRepository.findAllByPeriod(QuestPeriod.WEEKLY).stream()
+                .min(Comparator.comparing(Quest::getId))
+                .map(q -> {
+                    Optional<UserQuest> record = userQuestRepository.findByUserAndQuestAndPeriodStart(user, q, monday);
+                    int progress = record.map(UserQuest::getProgress).orElse(0);
+                    boolean completed = record.map(r -> r.getCompletedAt() != null).orElse(false);
+                    return new WeeklyQuestResponse(q.getId(), q.getTitle(), progress, q.getTargetValue(), q.getRewardXp(), completed);
+                })
+                .orElse(null);
+    }
+
+    // 누적 XP (기록이 없으면 0)
+    @Transactional(readOnly = true)
+    public int getXp(User user) {
+        return userStatRepository.findByUser(user).map(UserStat::getXp).orElse(0);
     }
 
     private boolean isCompleted(User user, Quest quest, LocalDate periodStart) {
