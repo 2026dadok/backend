@@ -4,7 +4,7 @@ import dongsim.dadok.mypage.domain.dto.MyPageResponse;
 import dongsim.dadok.mypage.service.MyPageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,7 +16,7 @@ public class MyPageController {
 
     // 마이페이지 통계
     @GetMapping("/users/my_page")
-    public ResponseEntity<MyPageResponse> getMyPage(Authentication authentication) {
-        return ResponseEntity.ok(myPageService.getMyPage(authentication.getName()));
+    public ResponseEntity<MyPageResponse> getMyPage(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(myPageService.getMyPage(email));
     }
 }

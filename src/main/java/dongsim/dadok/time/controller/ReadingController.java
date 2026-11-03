@@ -7,7 +7,7 @@ import dongsim.dadok.time.service.ReadingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,14 +19,14 @@ public class ReadingController {
 
     // 독서 시간 저장: 타이머 [책 덮기] → [네] 누르면 호출됨
     @PostMapping
-    public ResponseEntity<ReadTimeResponse> saveReadTime(Authentication authentication,
+    public ResponseEntity<ReadTimeResponse> saveReadTime(@AuthenticationPrincipal String email,
                                                          @Valid @RequestBody ReadTimeRequest request) {
-        return ResponseEntity.ok(readingService.saveReadTime(authentication.getName(), request));
+        return ResponseEntity.ok(readingService.saveReadTime(email, request));
     }
 
     // 타이머 페이지: 목표 시간, 오늘 읽은 시간
     @GetMapping("/timer_page")
-    public ResponseEntity<TimerPageResponse> getTimerPage(Authentication authentication) {
-        return ResponseEntity.ok(readingService.getTimerPage(authentication.getName()));
+    public ResponseEntity<TimerPageResponse> getTimerPage(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(readingService.getTimerPage(email));
     }
 }
