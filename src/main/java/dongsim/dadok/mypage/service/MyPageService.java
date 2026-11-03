@@ -3,6 +3,7 @@ package dongsim.dadok.mypage.service;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.league.service.LeagueService;
 import dongsim.dadok.profile.service.ProfileImageService;
+import dongsim.dadok.mypage.domain.dto.EditPageResponse;
 import dongsim.dadok.mypage.domain.dto.MyPageResponse;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.repository.ReadingLogRepository;
@@ -39,6 +40,19 @@ public class MyPageService {
                 leagueService.countTop5(user),
                 profileImageService.profileUrl(user),
                 profileImageService.bannerUrl(user)
+        );
+    }
+
+    // 정보 수정 페이지 (비밀번호 제외)
+    public EditPageResponse getEditPage(String email) {
+        User user = userStatRepository.findUserByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
+
+        return new EditPageResponse(
+                user.getName(),
+                user.getBirthDate(),
+                user.getDefaultTimerTime(),
+                user.getEmail()
         );
     }
 

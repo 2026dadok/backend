@@ -1,5 +1,6 @@
 package dongsim.dadok.mypage.controller;
 
+import dongsim.dadok.mypage.domain.dto.EditPageResponse;
 import dongsim.dadok.mypage.domain.dto.MyPageResponse;
 import dongsim.dadok.mypage.service.MyPageService;
 import lombok.RequiredArgsConstructor;
@@ -18,5 +19,11 @@ public class MyPageController {
     @GetMapping("/users/my_page")
     public ResponseEntity<MyPageResponse> getMyPage(@AuthenticationPrincipal String email) {
         return ResponseEntity.ok(myPageService.getMyPage(email));
+    }
+
+    // 정보 수정 페이지
+    @GetMapping("/users/edit_page")
+    public ResponseEntity<EditPageResponse> getEditPage(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(myPageService.getEditPage(email));
     }
 }
