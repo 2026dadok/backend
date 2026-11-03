@@ -25,6 +25,10 @@ public class UserStat {
 
     private Long equippedAchievementId;     // 사용 중인 칭호 (없으면 null)
 
+    private String profileImage;            // 프로필 사진 주소 (없으면 null → 기본 이미지)
+
+    private String bannerImage;             // 배경 사진 주소 (없으면 null → 기본 이미지)
+
     public UserStat(User user) {
         this.user = user;
         this.xp = 0;
@@ -36,5 +40,13 @@ public class UserStat {
 
     public void equipTitle(Long achievementId) {
         this.equippedAchievementId = achievementId;
+    }
+
+    public void updateProfileImage(String url) {
+        this.profileImage = url;
+    }
+
+    public void updateBannerImage(String url) {
+        this.bannerImage = url;
     }
 }

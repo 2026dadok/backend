@@ -8,6 +8,7 @@ import dongsim.dadok.league.domain.dto.RankResponse;
 import dongsim.dadok.league.domain.dto.WeekCompetitionResponse;
 import dongsim.dadok.league.domain.entity.WeeklyEntry;
 import dongsim.dadok.league.domain.repository.WeeklyEntryRepository;
+import dongsim.dadok.profile.service.ProfileImageService;
 import dongsim.dadok.quest.domain.entity.Tier;
 import dongsim.dadok.quest.domain.entity.UserStat;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
@@ -35,6 +36,7 @@ public class LeagueService {
     private final ReadingLogRepository readingLogRepository;
     private final UserStatRepository userStatRepository;
     private final AchievementService achievementService;
+    private final ProfileImageService profileImageService;
 
     // 주간 경쟁 페이지 (GET /main/week_competition)
     public WeekCompetitionResponse getWeekCompetition(String email) {
@@ -108,7 +110,7 @@ public class LeagueService {
                     displayRank,
                     u.getName(),
                     achievementService.getEquippedTitle(u),
-                    null,       // TODO: 프로필 이미지 연결
+                    profileImageService.profileUrl(u),
                     total,
                     u.getId().equals(me.getId())));
         }

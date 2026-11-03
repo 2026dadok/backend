@@ -7,7 +7,7 @@ import dongsim.dadok.achievement.service.AchievementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,14 +21,14 @@ public class AchievementController {
 
     // 업적 목록 (마이페이지 업적 영역)
     @GetMapping("/achievements")
-    public ResponseEntity<List<AchievementResponse>> getAchievements(Authentication authentication) {
-        return ResponseEntity.ok(achievementService.getAchievements(authentication.getName()));
+    public ResponseEntity<List<AchievementResponse>> getAchievements(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(achievementService.getAchievements(email));
     }
 
     // 칭호 사용
     @PutMapping("/title")
-    public ResponseEntity<MessageResponse> equipTitle(Authentication authentication,
+    public ResponseEntity<MessageResponse> equipTitle(@AuthenticationPrincipal String email,
                                                       @Valid @RequestBody TitleRequest request) {
-        return ResponseEntity.ok(achievementService.equipTitle(authentication.getName(), request.titleId()));
+        return ResponseEntity.ok(achievementService.equipTitle(email, request.titleId()));
     }
 }
