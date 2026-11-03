@@ -84,3 +84,7 @@ jwt:
   secret: ${JWT_SECRET} # 토큰 서명·검증용 비밀키를 외부 설정에서 읽음
   access-token-expiration: 3600000 # 액세스 토큰 유효 시간: 1시간(ms 기준)
   refresh-token-expiration: 1209600000 # 리프레시 토큰 유효 시간: 14일(ms 기준)
+
+#이미지 업로드
+upload:
+  profile-img-dir: ${UPLOAD_DIR:./uploads/profileImg}
