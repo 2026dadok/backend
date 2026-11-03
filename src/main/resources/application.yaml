@@ -70,3 +70,8 @@ jwt:
   secret: v9y$B&E)H@McQfTjWnZr4u7x!A%C*F-JaNdRgUkXp2s5v8y/B?E(G+KbPeShVmYq
   access-token-expiration: 3600000     # 1시간 (ms)
   refresh-token-expiration: 1209600000 # 14일 (ms)
+
+yes24:
+  api:
+    url: https://apis.yes24.com/v1/category/list
+    key: ${YES24_API_KEY:yk_live_92c5590aa345c4a122f2aeef876f3b1e4f109d9a0ace3526}
