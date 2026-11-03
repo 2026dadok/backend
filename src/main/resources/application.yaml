@@ -81,9 +81,14 @@ logging:
 # JWT 관련 사용자 정의 설정
 # 실제 적용 여부와 만료 시간 단위는 JWT 처리 코드에서 결정
 jwt:
-  secret: ${JWT_SECRET} # 토큰 서명·검증용 비밀키를 외부 설정에서 읽음
-  access-token-expiration: 3600000 # 액세스 토큰 유효 시간: 1시간(ms 기준)
-  refresh-token-expiration: 1209600000 # 리프레시 토큰 유효 시간: 14일(ms 기준)
+  secret: v9y$B&E)H@McQfTjWnZr4u7x!A%C*F-JaNdRgUkXp2s5v8y/B?E(G+KbPeShVmYq
+  access-token-expiration: 3600000     # 1시간 (ms)
+  refresh-token-expiration: 1209600000 # 14일 (ms)
+
+yes24:
+  api:
+    url: https://apis.yes24.com/v1/category/list
+    key: ${YES24_API_KEY:yk_live_92c5590aa345c4a122f2aeef876f3b1e4f109d9a0ace3526}
 
 #이미지 업로드
 upload:
