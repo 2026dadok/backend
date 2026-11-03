@@ -21,4 +21,10 @@ public interface ReadingLogRepository extends JpaRepository<ReadingLog, Long> {
     // 책을 읽은 날짜 목록 (중복 제거, 오래된 순)
     @Query("select distinct r.readDate from ReadingLog r where r.user = :user order by r.readDate")
     List<LocalDate> findReadDatesByUser(User user);
+
+    // 독서 기록이 하나라도 있는지
+    boolean existsByUser(User user);
+
+    // 이 책을 전에 읽은 기록이 있는지
+    boolean existsByUserAndBookId(User user, Long bookId);
 }

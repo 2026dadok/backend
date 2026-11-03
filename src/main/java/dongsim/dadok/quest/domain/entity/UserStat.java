@@ -33,4 +33,8 @@ public class UserStat {
     public void addXp(int amount) {
         this.xp += amount;
     }
+
+    public void equipTitle(Long achievementId) {
+        this.equippedAchievementId = achievementId;
+    }
 }

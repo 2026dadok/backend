@@ -1,5 +1,6 @@
 package dongsim.dadok.quest.service;
 
+import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.quest.domain.dto.AttendanceResponse;
 import dongsim.dadok.quest.domain.dto.DailyQuestResponse;
@@ -32,6 +33,7 @@ public class QuestService {
     private final QuestRepository questRepository;
     private final UserQuestRepository userQuestRepository;
     private final UserStatRepository userStatRepository;
+    private final AchievementService achievementService;
 
     // 출석 (POST /quests/attendance)
     public AttendanceResponse attend(String email) {
@@ -140,6 +142,7 @@ public class QuestService {
         UserStat stat = userStatRepository.findByUser(user)
                 .orElseGet(() -> userStatRepository.save(new UserStat(user)));
         stat.addXp(amount);
+        achievementService.checkTier(user, stat.getXp());
         return amount;
     }
 }
