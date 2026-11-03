@@ -10,12 +10,12 @@ public enum ImageType {
     PROFILE("profile", "/images/default-profile.png"),
     BANNER("banner", "/images/default-banner.png");
 
-    private final String folder;        // 저장 폴더 이름
+    private final String value;         // 요청의 type 값
     private final String defaultUrl;    // 사진이 없을 때 보여줄 기본 이미지
 
     public static ImageType from(String value) {
         for (ImageType t : values()) {
-            if (t.folder.equalsIgnoreCase(value)) return t;
+            if (t.value.equalsIgnoreCase(value)) return t;
         }
         return null;
     }
