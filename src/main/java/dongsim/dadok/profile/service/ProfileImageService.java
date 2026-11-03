@@ -33,7 +33,7 @@ public class ProfileImageService {
         UserStat stat = getOrCreateStat(findUser(email));
         String oldUrl = currentUrl(stat, type);
 
-        String newUrl = imageStorage.save(file, type.getFolder());
+        String newUrl = imageStorage.save(file);
         setUrl(stat, type, newUrl);
         imageStorage.delete(oldUrl);
 

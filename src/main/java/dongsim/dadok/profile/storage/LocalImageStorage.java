@@ -11,34 +11,29 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
-// 서버 폴더에 이미지 저장
+// 서버 폴더(upload.profile-img-dir)에 이미지 저장
+// 저장한 파일은 WebConfig의 /images/profileImg/** 로 제공됨
 @Component
 public class LocalImageStorage implements ImageStorage {
 
-    public static final String URL_PREFIX = "/images/";
+    public static final String URL_PREFIX = "/images/profileImg/";
 
     private final Path rootDir;
 
-    public LocalImageStorage(@Value("${app.upload-dir:${user.home}/dadok-uploads}") String uploadDir) {
+    public LocalImageStorage(@Value("${upload.profile-img-dir}") String uploadDir) {
         this.rootDir = Path.of(uploadDir).toAbsolutePath().normalize();
     }
 
-    public Path getRootDir() {
-        return rootDir;
-    }
-
     @Override
-    public String save(MultipartFile file, String folder) {
-        String ext = extension(file.getOriginalFilename());
-        String fileName = UUID.randomUUID() + "." + ext;
+    public String save(MultipartFile file) {
+        String fileName = UUID.randomUUID() + "." + extension(file.getOriginalFilename());
         try {
-            Path dir = rootDir.resolve(folder);
-            Files.createDirectories(dir);
-            file.transferTo(dir.resolve(fileName));
+            Files.createDirectories(rootDir);
+            file.transferTo(rootDir.resolve(fileName));
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 저장에 실패했습니다.");
         }
-        return URL_PREFIX + folder + "/" + fileName;
+        return URL_PREFIX + fileName;
     }
 
     @Override
