@@ -3,6 +3,7 @@ package dongsim.dadok.time.service;
 import dongsim.dadok.achievement.domain.entity.AchievementCondition;
 import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.auth.domain.entity.User;
+import dongsim.dadok.league.service.LeagueService;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.quest.service.QuestService;
 import dongsim.dadok.time.domain.dto.ReadTimeRequest;
@@ -34,6 +35,7 @@ public class ReadingService {
     private final UserStatRepository userStatRepository;
     private final QuestService questService;
     private final AchievementService achievementService;
+    private final LeagueService leagueService;
 
     // 독서 시간 저장 (POST /times)
     public ReadTimeResponse saveReadTime(String email, ReadTimeRequest request) {
@@ -61,6 +63,9 @@ public class ReadingService {
 
         // 3. 독서 관련 업적 검사
         checkReadingAchievements(user, firstRead, readBefore, now.minusSeconds(request.readTime()), now, today);
+
+        // 4. 주간 경쟁 참가 + 순위 업적 검사
+        leagueService.onReadingSaved(user);
 
         return new ReadTimeResponse("독서 시간이 저장되었습니다.", todaySeconds);
     }

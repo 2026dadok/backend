@@ -27,4 +27,9 @@ public interface ReadingLogRepository extends JpaRepository<ReadingLog, Long> {
 
     // 이 책을 전에 읽은 기록이 있는지
     boolean existsByUserAndBookId(User user, Long bookId);
+
+    // 기간 내 유저별 독서 시간 합계: [유저 id, 합계(초)]
+    @Query("select r.user.id, coalesce(sum(r.seconds), 0) from ReadingLog r " +
+           "where r.user in :users and r.readDate between :from and :to group by r.user.id")
+    List<Object[]> sumSecondsByUsersBetween(List<User> users, LocalDate from, LocalDate to);
 }

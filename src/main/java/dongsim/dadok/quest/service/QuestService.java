@@ -133,6 +133,11 @@ public class QuestService {
         return userStatRepository.findByUser(user).map(UserStat::getXp).orElse(0);
     }
 
+    // 퀘스트 외 보상 XP 지급 (주간 정산, 공동 서재 승리 등)
+    public int rewardXp(User user, int amount) {
+        return amount > 0 ? giveXp(user, amount) : 0;
+    }
+
     private boolean isCompleted(User user, Quest quest, LocalDate periodStart) {
         return userQuestRepository.existsByUserAndQuestAndPeriodStartAndCompletedAtIsNotNull(user, quest, periodStart);
     }

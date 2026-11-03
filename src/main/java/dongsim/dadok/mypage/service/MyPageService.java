@@ -1,6 +1,7 @@
 package dongsim.dadok.mypage.service;
 
 import dongsim.dadok.auth.domain.entity.User;
+import dongsim.dadok.league.service.LeagueService;
 import dongsim.dadok.mypage.domain.dto.MyPageResponse;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.repository.ReadingLogRepository;
@@ -20,6 +21,7 @@ public class MyPageService {
 
     private final UserStatRepository userStatRepository;
     private final ReadingLogRepository readingLogRepository;
+    private final LeagueService leagueService;
 
     public MyPageResponse getMyPage(String email) {
         User user = userStatRepository.findUserByEmail(email)
@@ -32,7 +34,7 @@ public class MyPageService {
                 allReadingTime,
                 sequenceDay,
                 0,      // TODO: 쪽수 기록 연결
-                0       // TODO: 주간 정산 결과 연결
+                leagueService.countTop5(user)
         );
     }
 
