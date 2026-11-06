@@ -3,11 +3,16 @@ package dongsim.dadok.mypage.service;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.league.service.LeagueService;
 import dongsim.dadok.profile.service.ProfileImageService;
+import dongsim.dadok.achievement.domain.dto.MessageResponse;
+import dongsim.dadok.mypage.domain.dto.EditInfoRequest;
+import dongsim.dadok.mypage.domain.dto.EditPageResponse;
 import dongsim.dadok.mypage.domain.dto.MyPageResponse;
+import dongsim.dadok.mypage.domain.repository.UserInfoRepository;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.repository.ReadingLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,6 +29,8 @@ public class MyPageService {
     private final ReadingLogRepository readingLogRepository;
     private final LeagueService leagueService;
     private final ProfileImageService profileImageService;
+    private final UserInfoRepository userInfoRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public MyPageResponse getMyPage(String email) {
         User user = userStatRepository.findUserByEmail(email)
@@ -40,6 +47,48 @@ public class MyPageService {
                 profileImageService.profileUrl(user),
                 profileImageService.bannerUrl(user)
         );
+    }
+
+    // 정보 수정 페이지 (비밀번호 제외)
+    public EditPageResponse getEditPage(String email) {
+        User user = userStatRepository.findUserByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
+
+        return new EditPageResponse(
+                user.getName(),
+                user.getBirthDate(),
+                user.getDefaultTimerTime(),
+                user.getEmail()
+        );
+    }
+
+    // 정보 수정 (이메일 제외, 새 비밀번호가 있을 때만 비밀번호 변경)
+    @Transactional
+    public MessageResponse editInfo(String email, EditInfoRequest request) {
+        User user = userStatRepository.findUserByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
+
+        String password = user.getPassword();
+        if (hasText(request.newPassword())) {
+            if (!hasText(request.currentPassword())
+                    || !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다.");
+            }
+            password = passwordEncoder.encode(request.newPassword());
+        }
+
+        userInfoRepository.updateInfo(
+                user.getId(),
+                request.name().trim(),
+                request.birthdate(),
+                request.goalTime(),
+                password
+        );
+        return new MessageResponse("정보가 수정되었습니다.");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     // 날짜 목록(오래된 순)에서 가장 길게 이어진 연속 일수
