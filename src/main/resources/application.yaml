@@ -71,7 +71,12 @@ jwt:
   access-token-expiration: 3600000     # 1시간 (ms)
   refresh-token-expiration: 1209600000 # 14일 (ms)
 
+
 yes24:
   api:
-    url: https://apis.yes24.com/v1/category/list
-    key: ${YES24_API_KEY:yk_live_92c5590aa345c4a122f2aeef876f3b1e4f109d9a0ace3526}
+    url: https://apis.yes24.com/v1/goods/itemList
+    detail-url: https://apis.yes24.com/v1/goods/itemDetail
+    bestseller-url: https://apis.yes24.com/v1/category/bestseller
+    # 선행 0이 있는 YES24 카테고리 ID는 숫자가 아니라 문자열로 유지해야 한다.
+    bestseller-category-id: "001"
+    key: ${YES24_API_KEY}
