@@ -33,6 +33,8 @@ public class BookService {
     private final ObjectMapper objectMapper;
     private final String yes24ApiUrl;
     private final String yes24DetailApiUrl;
+    private final String yes24BestsellerApiUrl;
+    private final String yes24BestsellerCategoryId;
     private final String yes24ApiKey;
 
     public BookService(
@@ -41,6 +43,8 @@ public class BookService {
             ObjectMapper objectMapper,
             @Value("${yes24.api.url}") String yes24ApiUrl,
             @Value("${yes24.api.detail-url}") String yes24DetailApiUrl,
+            @Value("${yes24.api.bestseller-url}") String yes24BestsellerApiUrl,
+            @Value("${yes24.api.bestseller-category-id}") String yes24BestsellerCategoryId,
             @Value("${yes24.api.key}") String yes24ApiKey
     ) {
         this.bookRepository = bookRepository;
@@ -48,6 +52,8 @@ public class BookService {
         this.objectMapper = objectMapper;
         this.yes24ApiUrl = yes24ApiUrl;
         this.yes24DetailApiUrl = yes24DetailApiUrl;
+        this.yes24BestsellerApiUrl = yes24BestsellerApiUrl;
+        this.yes24BestsellerCategoryId = yes24BestsellerCategoryId;
         this.yes24ApiKey = yes24ApiKey;
     }
 
@@ -74,9 +80,23 @@ public class BookService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 조건에 맞는 책이 없습니다.");
         }
 
-        // 3. API 검색 결과 DB 저장. 이미 저장된 ISBN이면 DB의 기존 엔티티를 반환한다.
+        return new BookSearchResponse(yes24Result.total(), saveBooks(fetchedBooks));
+    }
+
+    @Transactional
+    public BookSearchResponse getBestsellers(int page) {
+        Yes24SearchResult yes24Result = fetchBestsellersFromYes24(page);
+        if (yes24Result.books().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "베스트셀러 결과가 없습니다.");
+        }
+        // YES24가 제공한 sortOrder 순서를 그대로 유지해 반환한다.
+        return new BookSearchResponse(yes24Result.total(), saveBooks(yes24Result.books()));
+    }
+
+    // API 결과를 DB에 저장하되, 이미 저장된 ISBN은 기존 엔티티를 반환한다.
+    private List<Book> saveBooks(List<Book> books) {
         List<Book> savedBooks = new ArrayList<>();
-        for (Book book : fetchedBooks) {
+        for (Book book : books) {
             if (book.getIsbn13() == null || book.getIsbn13().isBlank()) {
                 savedBooks.add(bookRepository.save(book));
                 continue;
@@ -84,6 +104,10 @@ public class BookService {
 
             Book storedBook = bookRepository.findByIsbn13(book.getIsbn13()).orElse(null);
             if (storedBook != null) {
+                if ((storedBook.getDescription() == null || storedBook.getDescription().isBlank())
+                        && book.getDescription() != null && !book.getDescription().isBlank()) {
+                    storedBook.updateDescription(book.getDescription());
+                }
                 savedBooks.add(storedBook);
                 continue;
             }
@@ -98,7 +122,7 @@ public class BookService {
             }
         }
 
-        return new BookSearchResponse(yes24Result.total(), savedBooks);
+        return savedBooks;
     }
 
     @Transactional
@@ -157,38 +181,7 @@ public class BookService {
             }
 
             for (JsonNode item : items) {
-                // 1. 책 제목
-                String bookTitle = item.path("title").asText("제목 없음");
-                if (bookTitle.length() > 200) bookTitle = bookTitle.substring(0, 200);
-
-                // 2. cover_url
-                String coverUrl = item.hasNonNull("cover") ? item.path("cover").asText() : null;
-
-                // 3. 출판사
-                String publisher = item.path("publisher").asText("미상");
-                if (publisher.length() > 100) publisher = publisher.substring(0, 100);
-
-                // 4. 작가
-                String author = item.path("author").asText("미상");
-                if (author.length() > 100) author = author.substring(0, 100);
-
-                // 5. 장르
-                String genre = item.path("goodsSortNm").asText(item.path("goodsType").asText("기타"));
-                if (genre.length() > 50) genre = genre.substring(0, 50);
-
-                // 6. isbn13 코드
-                String isbn13 = item.hasNonNull("isbn13") ? item.path("isbn13").asText() : null;
-
-                // 7. 책 페이지 수
-                int pages = item.path("pages").asInt(0);
-
-                // 8. 책 소개
-                JsonNode contentDetail = item.path("contentDetail");
-                String description = contentDetail.hasNonNull("bookIntroduction")
-                        ? contentDetail.path("bookIntroduction").asText()
-                        : null;
-
-                resultList.add(new Book(bookTitle, coverUrl, publisher, author, genre, isbn13, pages, description));
+                resultList.add(toBook(item));
             }
 
             return new Yes24SearchResult(totalCount, resultList);
@@ -203,6 +196,71 @@ public class BookService {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "YES24 응답을 처리하지 못했습니다.", e);
         }
 
+    }
+
+    private Yes24SearchResult fetchBestsellersFromYes24(int page) {
+        List<Book> resultList = new ArrayList<>();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Api-Key", yes24ApiKey);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        String url = yes24BestsellerApiUrl
+                + "?categoryId={categoryId}&page={page}&pageSize=" + PAGE_SIZE + "&detail=Y";
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    String.class,
+                    Map.of("categoryId", yes24BestsellerCategoryId, "page", String.valueOf(page))
+            );
+            JsonNode root = objectMapper.readTree(response.getBody());
+            if (!root.path("success").asBoolean(false)) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "YES24 베스트셀러 조회에 실패했습니다.");
+            }
+
+            long totalCount = root.path("data").path("totalCount").asLong(0);
+            JsonNode items = root.path("data").path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                return new Yes24SearchResult(totalCount, resultList);
+            }
+            for (JsonNode item : items) {
+                resultList.add(toBook(item));
+            }
+            return new Yes24SearchResult(totalCount, resultList);
+        } catch (HttpClientErrorException.NotFound e) {
+            return new Yes24SearchResult(0, resultList);
+        } catch (RestClientException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "YES24 베스트셀러 조회에 실패했습니다.", e);
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "YES24 베스트셀러 응답을 처리하지 못했습니다.", e);
+        }
+    }
+
+    private Book toBook(JsonNode item) {
+        String bookTitle = item.path("title").asText("제목 없음");
+        if (bookTitle.length() > 200) bookTitle = bookTitle.substring(0, 200);
+
+        String coverUrl = item.hasNonNull("cover") ? item.path("cover").asText() : null;
+        String publisher = item.path("publisher").asText("미상");
+        if (publisher.length() > 100) publisher = publisher.substring(0, 100);
+
+        String author = item.path("author").asText("미상");
+        if (author.length() > 100) author = author.substring(0, 100);
+
+        String genre = item.path("goodsSortNm").asText(item.path("goodsType").asText("기타"));
+        if (genre.length() > 50) genre = genre.substring(0, 50);
+
+        String isbn13 = item.hasNonNull("isbn13") ? item.path("isbn13").asText() : null;
+        int pages = item.path("pages").asInt(0);
+        JsonNode contentDetail = item.path("contentDetail");
+        String description = contentDetail.hasNonNull("bookIntroduction")
+                ? contentDetail.path("bookIntroduction").asText()
+                : null;
+
+        return new Book(bookTitle, coverUrl, publisher, author, genre, isbn13, pages, description);
     }
 
     private String fetchDescriptionFromYes24(String isbn13) {
