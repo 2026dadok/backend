@@ -56,4 +56,8 @@ public class Book {
     public String getIsbn13() { return isbn13; }
     public int getPages() { return pages; }
     public String getDescription() { return description; }
+
+    public void updateDescription(String description) {
+        this.description = description;
+    }
 }

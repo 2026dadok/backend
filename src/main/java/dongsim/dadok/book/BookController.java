@@ -1,26 +1,32 @@
 package dongsim.dadok.book;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
-@RequestMapping("/api/books")
+@RequestMapping("/books")
+@Validated
 public class BookController {
 
-    @Autowired
-    private BookService bookService;
+    private final BookService bookService;
+
+    public BookController(BookService bookService) {
+        this.bookService = bookService;
+    }
 
     @GetMapping("/search")
-    public ResponseEntity<?> searchBooks(@RequestParam("title") String title) {
-        try {
-            List<Book> books = bookService.searchBooksByTitle(title);
-            return ResponseEntity.ok(books);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<BookSearchResponse> searchBooks(
+            @RequestParam("keyword") @NotBlank String keyword,
+            @RequestParam(value = "page", defaultValue = "1") @Positive int page
+    ) {
+        return ResponseEntity.ok(bookService.searchBooks(keyword, page));
+    }
+
+    @GetMapping("/{bookId}")
+    public ResponseEntity<Book> getBookDetail(@PathVariable Long bookId) {
+        return ResponseEntity.ok(bookService.getBookDetail(bookId));
     }
 }
