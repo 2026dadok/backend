@@ -25,6 +25,13 @@ public class BookController {
         return ResponseEntity.ok(bookService.searchBooks(keyword, page));
     }
 
+    @GetMapping("/bestsellers")
+    public ResponseEntity<BookSearchResponse> getBestsellers(
+            @RequestParam(value = "page", defaultValue = "1") @Positive int page
+    ) {
+        return ResponseEntity.ok(bookService.getBestsellers(page));
+    }
+
     @GetMapping("/{bookId}")
     public ResponseEntity<Book> getBookDetail(@PathVariable Long bookId) {
         return ResponseEntity.ok(bookService.getBookDetail(bookId));
