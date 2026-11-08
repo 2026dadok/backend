@@ -1,4 +1,6 @@
-package dongsim.dadok.book;
+package dongsim.dadok.book.repository;
+
+import dongsim.dadok.book.domain.entity.Book;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;

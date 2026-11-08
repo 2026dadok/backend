@@ -1,5 +1,13 @@
-package dongsim.dadok.book;
+package dongsim.dadok.book.controller;
 
+import dongsim.dadok.book.domain.dto.*;
+import dongsim.dadok.book.domain.entity.Book;
+import dongsim.dadok.book.service.BookService;
+import dongsim.dadok.rating.domain.dto.*;
+import dongsim.dadok.rating.service.RatingService;
+
+import dongsim.dadok.rating.service.RatingService;
+import dongsim.dadok.rating.domain.dto.RatingSummaryResponse;
 import org.springframework.http.ResponseEntity;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
@@ -12,9 +20,11 @@ import org.springframework.web.bind.annotation.*;
 public class BookController {
 
     private final BookService bookService;
+    private final RatingService ratingService;
 
-    public BookController(BookService bookService) {
+    public BookController(BookService bookService, RatingService ratingService) {
         this.bookService = bookService;
+        this.ratingService = ratingService;
     }
 
     @GetMapping("/search")
@@ -33,7 +43,9 @@ public class BookController {
     }
 
     @GetMapping("/{bookId}")
-    public ResponseEntity<Book> getBookDetail(@PathVariable Long bookId) {
-        return ResponseEntity.ok(bookService.getBookDetail(bookId));
+    public ResponseEntity<BookDetailResponse> getBookDetail(@PathVariable Long bookId) {
+        Book book = bookService.getBookDetail(bookId);
+        RatingSummaryResponse summary = ratingService.getSummary(bookId);
+        return ResponseEntity.ok(new BookDetailResponse(book, summary.averageRating(), summary.reviewCount()));
     }
 }
