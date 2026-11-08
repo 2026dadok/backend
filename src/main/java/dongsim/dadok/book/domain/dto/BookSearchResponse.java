@@ -1,4 +1,6 @@
-package dongsim.dadok.book;
+package dongsim.dadok.book.domain.dto;
+
+import dongsim.dadok.book.domain.entity.Book;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package dongsim.dadok.book;
+package dongsim.dadok.book.domain.entity;
 
 import jakarta.persistence.*;
 
