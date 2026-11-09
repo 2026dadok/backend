@@ -15,8 +15,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${email}
-    password: ${email_password}
+    username: guji253714@guji.ms.kr
+    password: soca imwt fnlq jfnw
     properties:
       mail:
         smtp:
@@ -26,9 +26,8 @@ spring:
 
   # MySQL 데이터베이스 연결
   datasource:
-    url: jdbc:mysql://dadokdb-kanghyogang1202-fa92.l.aivencloud.com:25881/dadokDB?sslMode=REQUIRED&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: jdbc:mysql://localhost:3306/dadok
+    username: root
     driver-class-name: com.mysql.cj.jdbc.Driver
 
     hikari:
