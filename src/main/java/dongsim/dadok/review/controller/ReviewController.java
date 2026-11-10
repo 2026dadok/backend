@@ -27,7 +27,7 @@ public class ReviewController {
 
     @GetMapping
     public ResponseEntity<List<ReviewCardResponse>> getReviewByLibBook(@RequestParam Long libBookId) {
-        return ResponseEntity.ok(reviewService.getReviewByLibBook(libBookId));
+        return ResponseEntity.ok(reviewService.getReviewsByLibBook(libBookId));
     }
 
     @GetMapping("/{reviewId}")
