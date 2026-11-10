@@ -33,6 +33,11 @@ public class AuthService {
     private final MailService mailService;
     private final jakarta.persistence.EntityManager entityManager; // 추가
 
+    // 아이디 중복 확인
+    public boolean existsByUserId(String userId) {
+        return userRepository.existsByUserId(userId);
+    }
+
     // 1. 이메일 인증번호 발송 (회원가입/아이디찾기/비번찾기)
     @Transactional
     public void sendVerificationCode(EmailSendRequest request) {
@@ -91,11 +96,16 @@ public class AuthService {
     // 3. 회원가입 (이메일 인증 필수 검증 포함)
     @Transactional
     public void signUp(SignUpRequest request) {
+        if (userRepository.existsByUserId(request.userId())) {
+            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+        }
+
         EmailVerification verification = verificationRepository
                 .findVerifiedLatest(request.email(), Verification.SIGNUP)
                 .orElseThrow(() -> new InvalidVerificationException("이메일 인증이 필요합니다."));
 
         User user = User.builder()
+                .userId(request.userId())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .name(request.name())
@@ -110,20 +120,20 @@ public class AuthService {
     // 4. 로그인
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new UserNotFoundException("가입되지 않은 이메일입니다."));
+        User user = userRepository.findByUserId(request.userId())
+                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 아이디입니다."));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new AuthenticationFailedException("비밀번호가 일치하지 않습니다.");
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail());
+        String accessToken = jwtTokenProvider.createAccessToken(user.getUserId());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId());
 
-        refreshTokenRepository.findByUserEmail(user.getEmail())
+        refreshTokenRepository.findByUserId(user.getUserId())
                 .ifPresentOrElse(
                         token -> token.updateToken(refreshToken),
-                        () -> refreshTokenRepository.save(new RefreshToken(null, user.getEmail(), refreshToken))
+                        () -> refreshTokenRepository.save(new RefreshToken(null, user.getUserId(), refreshToken))
                 );
 
         return new TokenResponse(accessToken, refreshToken);
@@ -131,8 +141,8 @@ public class AuthService {
 
     // 5. 로그아웃
     @Transactional
-    public void logout(String email) {
-        refreshTokenRepository.deleteByUserEmail(email);
+    public void logout(String userId) {
+        refreshTokenRepository.deleteByUserId(userId);
     }
 
     // 6. 아이디 찾기 (이름, 생년월일, 인증완료된 이메일 정보 확인)
@@ -145,7 +155,7 @@ public class AuthService {
                         request.name(), request.birthDate(), request.email())
                 .orElseThrow(() -> new UserNotFoundException("일치하는 회원 정보를 찾을 수 없습니다."));
 
-        return user.getEmail();
+        return user.getUserId();
     }
 
     // 7. 비밀번호 재설정 (이메일 인증 후)

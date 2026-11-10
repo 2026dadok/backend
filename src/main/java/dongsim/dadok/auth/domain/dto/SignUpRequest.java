@@ -3,12 +3,13 @@ package dongsim.dadok.auth.domain.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import org.antlr.v4.runtime.misc.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 
 public record SignUpRequest(
+        @NotBlank String userId,
         @NotBlank @Email String email,
 
         @JsonProperty("ID")
