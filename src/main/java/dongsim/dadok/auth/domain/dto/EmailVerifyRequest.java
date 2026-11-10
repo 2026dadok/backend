@@ -8,5 +8,5 @@ import org.antlr.v4.runtime.misc.NotNull;
 public record EmailVerifyRequest(
         @NotBlank @Email String email,
         @NotBlank String code,
-        @NotNull Verification type) {
+        @NotNull Verification purpose) {
 }

@@ -36,22 +36,22 @@ public class AuthService {
     // 1. 이메일 인증번호 발송 (회원가입/아이디찾기/비번찾기)
     @Transactional
     public void sendVerificationCode(EmailSendRequest request) {
-        if (request.type() == Verification.SIGNUP && userRepository.existsByEmail(request.email())) {
+        if (request.purpose() == Verification.SIGNUP && userRepository.existsByEmail(request.email())) {
             throw new DuplicateEmailException("이미 가입된 이메일입니다.");
         }
-        if ((request.type() == Verification.FIND_ID || request.type() == Verification.FIND_PASSWORD)
+        if ((request.purpose() == Verification.FIND_ID || request.purpose() == Verification.FIND_PASSWORD)
                 && !userRepository.existsByEmail(request.email())) {
             throw new UserNotFoundException("존재하지 않는 이메일입니다.");
         }
 
         // 기존 인증 기록 삭제 (무결성 보장)
-        verificationRepository.deleteByEmailAndType(request.email(), request.type());
+        verificationRepository.deleteByEmailAndType(request.email(), request.purpose());
 
         String code = String.format("%06d", new Random().nextInt(1000000));
         EmailVerification verification = EmailVerification.builder()
                 .email(request.email())
                 .code(code)
-                .type(request.type())
+                .type(request.purpose())
                 .isVerified(false)
                 .expiresAt(LocalDateTime.now().plusMinutes(5))
                 .build();
@@ -71,7 +71,8 @@ public class AuthService {
     @Transactional
     public boolean verifyCode(EmailVerifyRequest request) {
         EmailVerification verification = verificationRepository
-                .findByEmailAndCodeAndType(request.email(), request.code(), request.type())
+ //               .findByEmailAndCodeAndType(request.email(), request.code(), request.purpose())
+                .findByEmailAndCodeAndType(request.email(), request.code(), request.purpose())
                 .orElseThrow(() -> new InvalidVerificationException("인증번호가 일치하지 않거나 존재하지 않습니다."));
 
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
