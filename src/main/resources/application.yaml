@@ -30,14 +30,9 @@ spring:
 
   # MySQL 데이터베이스 연결 설정
   datasource:
-    # DB 주소, 포트, DB 이름 및 연결 옵션
-    # sslMode=REQUIRED: 암호화 연결 필수
-    # serverTimezone: JDBC 연결에서 사용할 서버 시간대
-    # characterEncoding: 연결에 사용할 문자 인코딩
-    url: jdbc:mysql://dadokdb-kanghyogang1202-fa92.l.aivencloud.com:25881/dadokDB?sslMode=REQUIRED&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: ${DB_USERNAME} # 외부 설정의 DB 사용자 이름
-    password: ${DB_PASSWORD} # 외부 설정의 DB 비밀번호
-    driver-class-name: com.mysql.cj.jdbc.Driver # MySQL JDBC 드라이버
+    url: jdbc:mysql://localhost:3306/dadok
+    username: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
     # DB 연결을 재사용하는 HikariCP 커넥션 풀 설정
     hikari:

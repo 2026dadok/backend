@@ -33,12 +33,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 2. 토큰 유효성 검증
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            String email = jwtTokenProvider.getEmailFromToken(token);
+            String userId = jwtTokenProvider.getUserIdFromToken(token);
 
             // 3. SecurityContext에 저장할 Authentication 객체 생성
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                            email,
+                            userId,
                             null,
                             Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
                     );

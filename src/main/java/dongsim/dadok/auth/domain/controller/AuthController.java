@@ -39,18 +39,17 @@ public class AuthController {
         return ResponseEntity.ok("회원가입이 완료되었습니다.");
     }
 
-    // 아이디(이메일) 중복 확인
-    @GetMapping("/check_id")
-    public ResponseEntity<Boolean> checkId(@RequestParam String email) {
-        boolean isDuplicate = authService.checkEmailDuplicate(email);
+    // 아이디 중복 확인
+    @GetMapping("/check-id")
+    public ResponseEntity<Boolean> checkIdDuplicate(@RequestParam String userId) {
+        boolean isDuplicate = authService.existsByUserId(userId);
         return ResponseEntity.ok(isDuplicate);
     }
-
     // 아이디 찾기
     @PostMapping("/find_id")
     public ResponseEntity<String> findId(@Valid @RequestBody FindIdRequest request) {
-        String email = authService.findId(request);
-        return ResponseEntity.ok("찾으신 아이디(이메일)는: " + email + " 입니다.");
+        String userId = authService.findId(request);
+        return ResponseEntity.ok("찾으신 아이디는: " + userId + " 입니다.");
     }
 
     // 비밀번호 재설정
@@ -85,10 +84,10 @@ public class AuthController {
     // 로그아웃
     @PostMapping("/logout")
     public ResponseEntity<String> logout(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal String userId,
             HttpServletResponse response) {
 
-        authService.logout(email);
+        authService.logout(userId);
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
