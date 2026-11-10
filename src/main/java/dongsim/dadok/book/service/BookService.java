@@ -30,7 +30,8 @@ import java.util.Map;
 @Service
 public class BookService {
 
-    private static final int PAGE_SIZE = 20;
+    private static final int SEARCH_PAGE_SIZE = 5;
+    private static final int BESTSELLER_PAGE_SIZE = 20;
 
     private final BookRepository bookRepository;
     private final RestTemplate restTemplate;
@@ -68,7 +69,7 @@ public class BookService {
         }
 
         String normalizedKeyword = keyword.trim();
-        PageRequest pageRequest = PageRequest.of(page - 1, PAGE_SIZE);
+        PageRequest pageRequest = PageRequest.of(page - 1, SEARCH_PAGE_SIZE);
 
         // 1. DB 우선 조회
         Page<Book> localBooks = bookRepository.findByBookTitleContaining(normalizedKeyword, pageRequest);
@@ -156,7 +157,7 @@ public class BookService {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         // detail=Y일 때 페이지 수와 도서 소개 등 확장 정보가 포함된다.
-        String url = yes24ApiUrl + "?query={query}&detail=Y&page={page}&pageSize=" + PAGE_SIZE + "&category=BOOK";
+        String url = yes24ApiUrl + "?query={query}&detail=Y&page={page}&pageSize=" + SEARCH_PAGE_SIZE + "&category=BOOK";
         Map<String, String> uriVariables = new HashMap<>();
         uriVariables.put("query", searchTitle);
         uriVariables.put("page", String.valueOf(page));
@@ -208,7 +209,7 @@ public class BookService {
         headers.set("X-Api-Key", yes24ApiKey);
         HttpEntity<String> entity = new HttpEntity<>(headers);
         String url = yes24BestsellerApiUrl
-                + "?categoryId={categoryId}&page={page}&pageSize=" + PAGE_SIZE + "&detail=Y";
+                + "?categoryId={categoryId}&page={page}&pageSize=" + BESTSELLER_PAGE_SIZE + "&detail=Y";
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(
