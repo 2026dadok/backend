@@ -39,11 +39,17 @@ public class AuthController {
         return ResponseEntity.ok("회원가입이 완료되었습니다.");
     }
 
+    // 아이디 중복 확인
+    @GetMapping("/check-id")
+    public ResponseEntity<Boolean> checkIdDuplicate(@RequestParam String userId) {
+        boolean isDuplicate = authService.existsByUserId(userId);
+        return ResponseEntity.ok(isDuplicate);
+    }
     // 아이디 찾기
     @PostMapping("/find-id")
     public ResponseEntity<String> findId(@Valid @RequestBody FindIdRequest request) {
-        String email = authService.findId(request);
-        return ResponseEntity.ok("찾으신 아이디(이메일)는: " + email + " 입니다.");
+        String userId = authService.findId(request);
+        return ResponseEntity.ok("찾으신 아이디는: " + userId + " 입니다.");
     }
 
     // 비밀번호 재설정
@@ -78,10 +84,10 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<String> logout(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal String userId,
             HttpServletResponse response) {
 
-        authService.logout(email);
+        authService.logout(userId);
 
         // Max-Age를 0으로 설정하여 쿠키 즉시 만료 삭제
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")

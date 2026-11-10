@@ -20,7 +20,10 @@ public class User {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String email;
+    private String userId; // 아이디
+
+    @Column(nullable = false, unique = true)
+    private String email; // 이메일
 
     @Column(nullable = false)
     private String password;
