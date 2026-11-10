@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -75,9 +76,10 @@ public class SharedReadingController {
     @GetMapping("/{sharedReadingId}/reflections")
     public ResponseEntity<List<ReflectionResponse>> getReflections(
             @AuthenticationPrincipal String userId,
-            @PathVariable Long sharedReadingId
+            @PathVariable Long sharedReadingId,
+            @RequestParam(value = "target", required = false) String target
     ) {
-        return ResponseEntity.ok(sharedReadingService.getReflections(requireUser(userId), sharedReadingId));
+        return ResponseEntity.ok(sharedReadingService.getReflections(requireUser(userId), sharedReadingId, target));
     }
 
     private String requireUser(String userId) {
