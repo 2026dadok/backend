@@ -20,6 +20,10 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
 
+    @Transactional
+    public Long create(ReviewCreateRequest request) {
+        Review review = Review.builder()
+                .libBookID(request.getLibBookId())
     // 감상문 등록 (모달에서 완료 버튼 클릭 시)
     @Transactional
     public Long create(ReviewCreateRequest request) {
@@ -35,6 +39,8 @@ public class ReviewService {
     // 특정 서재 책의 감상문 카드 전체 목록 조회 (1일차부터 순서대로 번호 매김)
     public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
         List<Review> reviews = reviewRepository.findAllBylibBookIdOrderByReviewDateAsc(libBookId);
+    public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
+        List<Review> reviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(libBookId);
         List<ReviewCardResponse> responses = new ArrayList<>();
 
         for (int i = 0; i < reviews.size(); i++) {
@@ -46,6 +52,10 @@ public class ReviewService {
         return responses;
     }
 
+    public ReviewDetailResponse getReviewDetail(Long reviewId) {
+        Review targetReview = findReview(reviewId);
+
+        List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookID());
     // 카드 클릭 시 모달 단건 상세 조회
     public ReviewDetailResponse getReviewDetail(Long reviewId) {
         Review targetReview = reviewRepository.findById(reviewId)
@@ -67,6 +77,22 @@ public class ReviewService {
         return new ReviewDetailResponse(targetReview, dayIndex, isCompleted);
     }
 
+    @Transactional
+    public void update(Long reviewId, ReviewUpdateRequest request) {
+        Review review = findReview(reviewId);
+        review.updateReview(request.getReview());   // 더티체킹으로 자동 UPDATE
+    }
+
+    @Transactional
+    public void delete(Long reviewId) {
+        Review review = findReview(reviewId);
+        reviewRepository.delete(review);
+    }
+
+    private Review findReview(Long reviewId) {
+        return reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
+    }
     // 감상문 내용 수정
     @Transactional
     public void update(Long reviewId, ReviewUpdateRequest request) {

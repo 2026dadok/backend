@@ -16,12 +16,14 @@ import java.time.LocalDateTime;
 public class Review {
 
     @Id
+    @ID
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "review_id")
     private Long id;
 
     @Column(name = "lib_book_id", nullable = false)
     private Long libBookId;
+    private Long libBookID;
 
     @Column(name = "review_date", nullable = false)
     private LocalDateTime reviewDate;
@@ -36,6 +38,8 @@ public class Review {
     @Builder
     public Review(Long libBookId, LocalDateTime reviewDate, String review) {
         this.libBookId = libBookId;
+    public Review(Long libBookID, LocalDateTime reviewDate, String review) {
+        this.libBookID = libBookID;
         this.reviewDate = (reviewDate != null) ? reviewDate : LocalDateTime.now();
         this.review = review;
     }
