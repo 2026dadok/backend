@@ -8,5 +8,5 @@ import jakarta.validation.constraints.NotNull;
 public record EmailVerifyRequest(
         @NotBlank @Email String email,
         @NotBlank String code,
-        @NotNull Verification type) {
+        @NotNull Verification purpose) {
 }
