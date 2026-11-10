@@ -117,9 +117,24 @@ public class SharedReadingService {
         return dailyReflectionRepository.save(reflection).getReflectionId();
     }
 
-    public List<ReflectionResponse> getReflections(String userId, Long sharedReadingId) {
-        getParticipantReading(userId, sharedReadingId);
-        return dailyReflectionRepository.findBySharedReadingSharedReadingIdOrderByReadingDayDescCreatedAtDesc(sharedReadingId).stream()
+    public List<ReflectionResponse> getReflections(String userId, Long sharedReadingId, String target) {
+        SharedReading reading = getParticipantReading(userId, sharedReadingId);
+        List<DailyReflection> reflections;
+        if (target == null) {
+            reflections = dailyReflectionRepository.findBySharedReadingSharedReadingIdOrderByReadingDayDescCreatedAtDesc(sharedReadingId);
+        } else if (target.equals("me")) {
+            reflections = dailyReflectionRepository.findBySharedReadingSharedReadingIdAndUserIdOrderByReadingDayDescCreatedAtDesc(sharedReadingId, userId);
+        } else if (target.equals("partner")) {
+            String partnerId = reading.getMembers().stream()
+                    .map(SharedReadingMember::getUserId)
+                    .filter(id -> !id.equals(userId))
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "상대 참여자를 찾을 수 없습니다."));
+            reflections = dailyReflectionRepository.findBySharedReadingSharedReadingIdAndUserIdOrderByReadingDayDescCreatedAtDesc(sharedReadingId, partnerId);
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "target은 me 또는 partner여야 합니다.");
+        }
+        return reflections.stream()
                 .map(reflection -> new ReflectionResponse(
                         reflection.getReflectionId(), reflection.getUserId(), getUserName(reflection.getUserId()),
                         reflection.getReadingDay(), reflection.getContent(), reflection.getCreatedAt()

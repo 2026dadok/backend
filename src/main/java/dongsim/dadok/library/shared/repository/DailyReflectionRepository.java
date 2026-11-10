@@ -10,4 +10,6 @@ public interface DailyReflectionRepository extends JpaRepository<DailyReflection
     boolean existsBySharedReadingSharedReadingIdAndUserIdAndReadingDay(Long sharedReadingId, String userId, int readingDay);
 
     List<DailyReflection> findBySharedReadingSharedReadingIdOrderByReadingDayDescCreatedAtDesc(Long sharedReadingId);
+
+    List<DailyReflection> findBySharedReadingSharedReadingIdAndUserIdOrderByReadingDayDescCreatedAtDesc(Long sharedReadingId, String userId);
 }
