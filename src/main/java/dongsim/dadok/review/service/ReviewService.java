@@ -23,8 +23,9 @@ public class ReviewService {
     @Transactional
     public Long create(ReviewCreateRequest request) {
         Review review = Review.builder()
-                .libBookId(request.getLibBookId())
+                .libBookID(request.getLibBookId())
                 .reviewDate(request.getReviewDate())
+                .review(request.getReview())
                 .build();
 
         return reviewRepository.save(review).getId();
@@ -34,7 +35,7 @@ public class ReviewService {
         List<Review> reviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(libBookId);
         List<ReviewCardResponse> responses = new ArrayList<>();
 
-        for(int i = 0; i < reviews.size(); i++) {
+        for (int i = 0; i < reviews.size(); i++) {
             int dayIndex = i + 1;
             boolean isLast = (i == reviews.size() - 1);
             responses.add(new ReviewCardResponse(reviews.get(i), dayIndex, isLast));
@@ -43,17 +44,16 @@ public class ReviewService {
     }
 
     public ReviewDetailResponse getReviewDetail(Long reviewId) {
-        Review targetReview = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
+        Review targetReview = findReview(reviewId);
 
-        List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookId());
+        List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookID());
         int dayIndex = 1;
         boolean isCompleted = false;
 
-        for(int i = 0; i < allReviews.size(); i++) {
+        for (int i = 0; i < allReviews.size(); i++) {
             if (allReviews.get(i).getId().equals(reviewId)) {
                 dayIndex = i + 1;
-                isCompleted = (i ==allReviews.size() - 1);
+                isCompleted = (i == allReviews.size() - 1);
                 break;
             }
         }
@@ -63,9 +63,18 @@ public class ReviewService {
 
     @Transactional
     public void update(Long reviewId, ReviewUpdateRequest request) {
-        Review review = reviewRepository.findById(reviewId)
-                .orElseThrow() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
+        Review review = findReview(reviewId);
+        review.updateReview(request.getReview());   // 더티체킹으로 자동 UPDATE
+    }
 
+    @Transactional
+    public void delete(Long reviewId) {
+        Review review = findReview(reviewId);
         reviewRepository.delete(review);
+    }
+
+    private Review findReview(Long reviewId) {
+        return reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
     }
 }
