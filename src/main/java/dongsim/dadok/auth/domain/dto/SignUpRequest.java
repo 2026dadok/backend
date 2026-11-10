@@ -1,15 +1,31 @@
 package dongsim.dadok.auth.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import org.antlr.v4.runtime.misc.NotNull;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 public record SignUpRequest(
         @NotBlank @Email String email,
+
+        @JsonProperty("ID")
+        @NotBlank String loginId,
+
+        @JsonProperty("passward")
         @NotBlank String password,
+
         @NotBlank String name,
+
+        @JsonProperty("birthdate")
         @NotNull LocalDate birthDate,
-        @NotNull Integer defaultTimerTime) {
+
+        @JsonProperty("goal_time")
+        @NotNull LocalTime goalTime
+) {
+    public Integer defaultTimerTime() {
+        return goalTime.toSecondOfDay();
+    }
 }
