@@ -15,21 +15,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Review {
 
-<<<<<<< HEAD
-    @ID
-=======
     @Id
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
+    @ID
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "review_id")
     private Long id;
 
     @Column(name = "lib_book_id", nullable = false)
-<<<<<<< HEAD
-    private Long libBookID;
-=======
     private Long libBookId;
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
+    private Long libBookID;
 
     @Column(name = "review_date", nullable = false)
     private LocalDateTime reviewDate;
@@ -42,13 +36,10 @@ public class Review {
     private LocalDateTime createDate;
 
     @Builder
-<<<<<<< HEAD
-    public Review(Long libBookID, LocalDateTime reviewDate, String review) {
-        this.libBookID = libBookID;
-=======
     public Review(Long libBookId, LocalDateTime reviewDate, String review) {
         this.libBookId = libBookId;
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
+    public Review(Long libBookID, LocalDateTime reviewDate, String review) {
+        this.libBookID = libBookID;
         this.reviewDate = (reviewDate != null) ? reviewDate : LocalDateTime.now();
         this.review = review;
     }

@@ -20,18 +20,15 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
 
-<<<<<<< HEAD
     @Transactional
     public Long create(ReviewCreateRequest request) {
         Review review = Review.builder()
                 .libBookID(request.getLibBookId())
-=======
     // 감상문 등록 (모달에서 완료 버튼 클릭 시)
     @Transactional
     public Long create(ReviewCreateRequest request) {
         Review review = Review.builder()
                 .libBookId(request.getLibBookId())
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
                 .reviewDate(request.getReviewDate())
                 .review(request.getReview())
                 .build();
@@ -39,34 +36,26 @@ public class ReviewService {
         return reviewRepository.save(review).getId();
     }
 
-<<<<<<< HEAD
-    public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
-        List<Review> reviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(libBookId);
-=======
     // 특정 서재 책의 감상문 카드 전체 목록 조회 (1일차부터 순서대로 번호 매김)
     public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
         List<Review> reviews = reviewRepository.findAllBylibBookIdOrderByReviewDateAsc(libBookId);
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
+    public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
+        List<Review> reviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(libBookId);
         List<ReviewCardResponse> responses = new ArrayList<>();
 
         for (int i = 0; i < reviews.size(); i++) {
             int dayIndex = i + 1;
-<<<<<<< HEAD
-=======
             // 마지막 작성 글 여부 (디자인의 마지막 완독 표시용 플래그)
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
             boolean isLast = (i == reviews.size() - 1);
             responses.add(new ReviewCardResponse(reviews.get(i), dayIndex, isLast));
         }
         return responses;
     }
 
-<<<<<<< HEAD
     public ReviewDetailResponse getReviewDetail(Long reviewId) {
         Review targetReview = findReview(reviewId);
 
         List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookID());
-=======
     // 카드 클릭 시 모달 단건 상세 조회
     public ReviewDetailResponse getReviewDetail(Long reviewId) {
         Review targetReview = reviewRepository.findById(reviewId)
@@ -74,7 +63,6 @@ public class ReviewService {
 
         // 등록된 전체 글 순서를 기준으로 몇 일차인지 계산
         List<Review> allReviews = reviewRepository.findAllBylibBookIdOrderByReviewDateAsc(targetReview.getLibBookId());
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
         int dayIndex = 1;
         boolean isCompleted = false;
 
@@ -89,7 +77,6 @@ public class ReviewService {
         return new ReviewDetailResponse(targetReview, dayIndex, isCompleted);
     }
 
-<<<<<<< HEAD
     @Transactional
     public void update(Long reviewId, ReviewUpdateRequest request) {
         Review review = findReview(reviewId);
@@ -106,7 +93,6 @@ public class ReviewService {
         return reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
     }
-=======
     // 감상문 내용 수정
     @Transactional
     public void update(Long reviewId, ReviewUpdateRequest request) {
@@ -125,5 +111,4 @@ public class ReviewService {
 
         reviewRepository.delete(review);
     }
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
 }

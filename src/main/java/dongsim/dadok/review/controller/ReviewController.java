@@ -9,10 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-<<<<<<< HEAD
-
-=======
->>>>>>> fc78119 (feat: dadok 전체 코드 커밋)
 import java.util.List;
 
 @RestController
