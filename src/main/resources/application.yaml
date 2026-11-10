@@ -17,11 +17,10 @@ spring:
 
   # 이메일 발송 설정
   mail:
-    host: smtp.gmail.com # Gmail SMTP 서버 주소
-    port: 587 # STARTTLS를 사용하는 SMTP 포트
-    username: ${email} # 발송 계정 이메일을 외부 설정에서 읽음
-    password: ${email_password} # Gmail 앱 비밀번호를 외부 설정에서 읽음
-
+    host: smtp.gmail.com
+    port: 587
+    username: guji253714@guji.ms.kr
+    password: soca imwt fnlq jfnw
     properties:
       mail:
         smtp:
