@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,5 +38,11 @@ public class MyPageController {
     public ResponseEntity<MessageResponse> editInfo(@AuthenticationPrincipal String email,
                                                     @Valid @RequestBody EditInfoRequest request) {
         return ResponseEntity.ok(myPageService.editInfo(email, request));
+    }
+
+    // 회원탈퇴
+    @DeleteMapping("/users/me")
+    public ResponseEntity<MessageResponse> withdraw(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(myPageService.withdraw(email));
     }
 }

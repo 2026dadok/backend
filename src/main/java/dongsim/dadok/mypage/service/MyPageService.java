@@ -4,6 +4,7 @@ import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.league.service.LeagueService;
 import dongsim.dadok.profile.service.ProfileImageService;
 import dongsim.dadok.achievement.domain.dto.MessageResponse;
+import dongsim.dadok.auth.domain.repository.RefreshTokenRepository;
 import dongsim.dadok.mypage.domain.dto.EditInfoRequest;
 import dongsim.dadok.mypage.domain.dto.EditPageResponse;
 import dongsim.dadok.mypage.domain.dto.MyPageResponse;
@@ -31,6 +32,7 @@ public class MyPageService {
     private final ProfileImageService profileImageService;
     private final UserInfoRepository userInfoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public MyPageResponse getMyPage(String email) {
         User user = userStatRepository.findUserByEmail(email)
@@ -85,6 +87,18 @@ public class MyPageService {
                 password
         );
         return new MessageResponse("정보가 수정되었습니다.");
+    }
+
+    // 회원탈퇴 (이메일·비밀번호만 삭제, 다른 기록은 유지)
+    @Transactional
+    public MessageResponse withdraw(String email) {
+        User user = userStatRepository.findUserByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
+
+        refreshTokenRepository.deleteByUserEmail(email);
+        // email은 NOT NULL·UNIQUE라서 비우는 대신 사용자별 고유값으로 바꿈 (같은 이메일로 재가입 가능)
+        userInfoRepository.withdraw(user.getId(), "withdrawn_" + user.getId());
+        return new MessageResponse("회원탈퇴가 완료되었습니다.");
     }
 
     private boolean hasText(String value) {
