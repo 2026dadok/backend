@@ -20,10 +20,6 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
 
-    @Transactional
-    public Long create(ReviewCreateRequest request) {
-        Review review = Review.builder()
-                .libBookID(request.getLibBookId())
     // 감상문 등록 (모달에서 완료 버튼 클릭 시)
     @Transactional
     public Long create(ReviewCreateRequest request) {
@@ -38,8 +34,6 @@ public class ReviewService {
 
     // 특정 서재 책의 감상문 카드 전체 목록 조회 (1일차부터 순서대로 번호 매김)
     public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
-        List<Review> reviews = reviewRepository.findAllBylibBookIdOrderByReviewDateAsc(libBookId);
-    public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
         List<Review> reviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(libBookId);
         List<ReviewCardResponse> responses = new ArrayList<>();
 
@@ -52,17 +46,12 @@ public class ReviewService {
         return responses;
     }
 
+    // 카드 클릭 시 모달 단건 상세 조회
     public ReviewDetailResponse getReviewDetail(Long reviewId) {
         Review targetReview = findReview(reviewId);
 
-        List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookID());
-    // 카드 클릭 시 모달 단건 상세 조회
-    public ReviewDetailResponse getReviewDetail(Long reviewId) {
-        Review targetReview = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
-
         // 등록된 전체 글 순서를 기준으로 몇 일차인지 계산
-        List<Review> allReviews = reviewRepository.findAllBylibBookIdOrderByReviewDateAsc(targetReview.getLibBookId());
+        List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookId());
         int dayIndex = 1;
         boolean isCompleted = false;
 
@@ -77,12 +66,14 @@ public class ReviewService {
         return new ReviewDetailResponse(targetReview, dayIndex, isCompleted);
     }
 
+    // 감상문 내용 수정 (변경 감지로 자동 갱신)
     @Transactional
     public void update(Long reviewId, ReviewUpdateRequest request) {
         Review review = findReview(reviewId);
-        review.updateReview(request.getReview());   // 더티체킹으로 자동 UPDATE
+        review.updateReview(request.getReview());
     }
 
+    // 감상문 삭제
     @Transactional
     public void delete(Long reviewId) {
         Review review = findReview(reviewId);
@@ -92,23 +83,5 @@ public class ReviewService {
     private Review findReview(Long reviewId) {
         return reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
-    }
-    // 감상문 내용 수정
-    @Transactional
-    public void update(Long reviewId, ReviewUpdateRequest request) {
-        Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
-
-        // 엔티티의 비즈니스 메서드를 호출해 변경 감지(Dirty Checking)로 자동 갱신
-        review.updateReview(request.getReview());
-    }
-
-    // 감상문 삭제
-    @Transactional
-    public void delete(Long reviewId) {
-        Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
-
-        reviewRepository.delete(review);
     }
 }
