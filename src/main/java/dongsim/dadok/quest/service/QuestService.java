@@ -9,6 +9,8 @@ import dongsim.dadok.quest.domain.entity.*;
 import dongsim.dadok.quest.domain.repository.QuestRepository;
 import dongsim.dadok.quest.domain.repository.UserQuestRepository;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
+import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
+import org.springframework.context.event.EventListener;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,12 @@ public class QuestService {
     private final QuestRepository questRepository;
     private final UserQuestRepository userQuestRepository;
     private final UserStatRepository userStatRepository;
+    @EventListener
+    public void handleReadingCompleted(ReadingCompletedEvent event) {
+        checkReadTimeQuests(event.getUser(), event.getTodaySeconds(), event.getToday());
+    }
+
+
     private final AchievementService achievementService;
 
     // 출석 (POST /quests/attendance)
