@@ -95,7 +95,7 @@ public class MyPageService {
         User user = userStatRepository.findUserByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
-        refreshTokenRepository.deleteByUserEmail(email);
+        refreshTokenRepository.deleteByUserId(email);
         // email은 NOT NULL·UNIQUE라서 비우는 대신 사용자별 고유값으로 바꿈 (같은 이메일로 재가입 가능)
         userInfoRepository.withdraw(user.getId(), "withdrawn_" + user.getId());
         return new MessageResponse("회원탈퇴가 완료되었습니다.");

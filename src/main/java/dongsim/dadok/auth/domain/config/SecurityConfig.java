@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/books/reviews").authenticated()
                         .requestMatchers("/shared-readings/**").authenticated()
                         .requestMatchers("/library/**").authenticated()
+                        .requestMatchers("/api/v1/reviews/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

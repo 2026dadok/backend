@@ -1,5 +1,7 @@
 package dongsim.dadok.review.service;
 
+import dongsim.dadok.library.personal.domain.entity.PersonalLibraryBook;
+import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
 import dongsim.dadok.review.domain.dto.request.ReviewCreateRequest;
 import dongsim.dadok.review.domain.dto.request.ReviewUpdateRequest;
 import dongsim.dadok.review.domain.dto.response.ReviewCardResponse;
@@ -7,8 +9,10 @@ import dongsim.dadok.review.domain.dto.response.ReviewDetailResponse;
 import dongsim.dadok.review.domain.entity.Review;
 import dongsim.dadok.review.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,10 +23,13 @@ import java.util.List;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final PersonalLibraryBookRepository personalLibraryBookRepository;
 
-    // 감상문 등록 (모달에서 완료 버튼 클릭 시)
+    // 감상문 등록 (모달에서 완료 버튼 클릭 시) - 본인 서재 책에만 쓸 수 있다
     @Transactional
-    public Long create(ReviewCreateRequest request) {
+    public Long create(String userId, ReviewCreateRequest request) {
+        requireOwnedLibBook(userId, request.getLibBookId());
+
         Review review = Review.builder()
                 .libBookId(request.getLibBookId())
                 .reviewDate(request.getReviewDate())
@@ -33,7 +40,9 @@ public class ReviewService {
     }
 
     // 특정 서재 책의 감상문 카드 전체 목록 조회 (1일차부터 순서대로 번호 매김)
-    public List<ReviewCardResponse> getReviewsByLibBook(Long libBookId) {
+    public List<ReviewCardResponse> getReviewsByLibBook(String userId, Long libBookId) {
+        requireOwnedLibBook(userId, libBookId);
+
         List<Review> reviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(libBookId);
         List<ReviewCardResponse> responses = new ArrayList<>();
 
@@ -47,8 +56,8 @@ public class ReviewService {
     }
 
     // 카드 클릭 시 모달 단건 상세 조회
-    public ReviewDetailResponse getReviewDetail(Long reviewId) {
-        Review targetReview = findReview(reviewId);
+    public ReviewDetailResponse getReviewDetail(String userId, Long reviewId) {
+        Review targetReview = findOwnedReview(userId, reviewId);
 
         // 등록된 전체 글 순서를 기준으로 몇 일차인지 계산
         List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookId());
@@ -62,26 +71,46 @@ public class ReviewService {
                 break;
             }
         }
-
         return new ReviewDetailResponse(targetReview, dayIndex, isCompleted);
     }
 
     // 감상문 내용 수정 (변경 감지로 자동 갱신)
     @Transactional
-    public void update(Long reviewId, ReviewUpdateRequest request) {
-        Review review = findReview(reviewId);
+    public void update(String userId, Long reviewId, ReviewUpdateRequest request) {
+        Review review = findOwnedReview(userId, reviewId);
         review.updateReview(request.getReview());
     }
 
     // 감상문 삭제
     @Transactional
-    public void delete(Long reviewId) {
-        Review review = findReview(reviewId);
+    public void delete(String userId, Long reviewId) {
+        Review review = findOwnedReview(userId, reviewId);
         reviewRepository.delete(review);
     }
 
-    private Review findReview(Long reviewId) {
-        return reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 감상문입니다."));
+    // 감상문을 찾고, 그 감상문이 달린 서재 책이 로그인한 사용자의 것인지 확인한다.
+    private Review findOwnedReview(String userId, Long reviewId) {
+        requireLogin(userId);
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 감상문입니다."));
+        requireOwnedLibBook(userId, review.getLibBookId());
+        return review;
+    }
+
+    // 서재 책이 존재하고 로그인한 사용자의 것인지 확인한다.
+    // 없는 책이면 404, 남의 책이면 403 을 돌려준다.
+    private void requireOwnedLibBook(String userId, Long libBookId) {
+        requireLogin(userId);
+        PersonalLibraryBook libBook = personalLibraryBookRepository.findById(libBookId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "개인 서재에 추가되지 않은 책입니다."));
+        if (!userId.equals(libBook.getUser().getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 서재의 감상문만 이용할 수 있습니다.");
+        }
+    }
+
+    private void requireLogin(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
     }
 }
