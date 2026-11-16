@@ -23,26 +23,26 @@ public class MyPageController {
 
     // 마이페이지 통계
     @GetMapping("/users/my_page")
-    public ResponseEntity<MyPageResponse> getMyPage(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(myPageService.getMyPage(email));
+    public ResponseEntity<MyPageResponse> getMyPage(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(myPageService.getMyPage(userId));
     }
 
     // 정보 수정 페이지
     @GetMapping("/users/edit_page")
-    public ResponseEntity<EditPageResponse> getEditPage(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(myPageService.getEditPage(email));
+    public ResponseEntity<EditPageResponse> getEditPage(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(myPageService.getEditPage(userId));
     }
 
     // 정보 수정
     @PutMapping("/users/edit_info")
-    public ResponseEntity<MessageResponse> editInfo(@AuthenticationPrincipal String email,
+    public ResponseEntity<MessageResponse> editInfo(@AuthenticationPrincipal String userId,
                                                     @Valid @RequestBody EditInfoRequest request) {
-        return ResponseEntity.ok(myPageService.editInfo(email, request));
+        return ResponseEntity.ok(myPageService.editInfo(userId, request));
     }
 
     // 회원탈퇴
     @DeleteMapping("/users/me")
-    public ResponseEntity<MessageResponse> withdraw(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(myPageService.withdraw(email));
+    public ResponseEntity<MessageResponse> withdraw(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(myPageService.withdraw(userId));
     }
 }

@@ -10,4 +10,10 @@ public record RankResponse(
         @JsonProperty("profile_image") String profileImage,
         @JsonProperty("total_seconds") long totalSeconds,
         @JsonProperty("is_me") boolean isMe
-) {}
+) {
+    // 이번 주 독서 시간 (분)
+    @JsonProperty("minutes")
+    public long minutes() {
+        return totalSeconds / 60;
+    }
+}

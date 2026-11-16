@@ -1,5 +1,7 @@
 package dongsim.dadok.library.personal.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 
 public record LibraryBookResponse(
@@ -14,4 +16,9 @@ public record LibraryBookResponse(
         boolean completed,
         LocalDateTime completedAt
 ) {
+    // 프론트 호환 키
+    @JsonProperty("book_id")
+    public Long book_id() {
+        return bookId;
+    }
 }

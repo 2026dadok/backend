@@ -26,11 +26,11 @@ public class ProfileImageService {
     private final ImageStorage imageStorage;
 
     // 프로필·배경 변경 (PUT /users/image)
-    public ImageResponse upload(String email, String typeValue, MultipartFile file) {
+    public ImageResponse upload(String userId, String typeValue, MultipartFile file) {
         ImageType type = parseType(typeValue);
         validateImage(file);
 
-        UserStat stat = getOrCreateStat(findUser(email));
+        UserStat stat = getOrCreateStat(findUser(userId));
         String oldUrl = currentUrl(stat, type);
 
         String newUrl = imageStorage.save(file);
@@ -41,9 +41,9 @@ public class ProfileImageService {
     }
 
     // 프로필·배경 삭제 → 기본 이미지로 (DELETE /users/image)
-    public ImageResponse delete(String email, String typeValue) {
+    public ImageResponse delete(String userId, String typeValue) {
         ImageType type = parseType(typeValue);
-        UserStat stat = getOrCreateStat(findUser(email));
+        UserStat stat = getOrCreateStat(findUser(userId));
 
         imageStorage.delete(currentUrl(stat, type));
         setUrl(stat, type, null);
@@ -103,8 +103,8 @@ public class ProfileImageService {
                 .orElseGet(() -> userStatRepository.save(new UserStat(user)));
     }
 
-    private User findUser(String email) {
-        return userStatRepository.findUserByEmail(email)
+    private User findUser(String userId) {
+        return userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 }

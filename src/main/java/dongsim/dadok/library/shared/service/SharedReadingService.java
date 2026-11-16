@@ -166,7 +166,7 @@ public class SharedReadingService {
     }
 
     private String getUserName(String userId) {
-        return userRepository.findByEmail(userId).map(User::getName).orElse("알 수 없음");
+        return userRepository.findByUserId(userId).map(User::getName).orElse("알 수 없음");
     }
 
     private String createPairKey(String firstUserId, String secondUserId) {
