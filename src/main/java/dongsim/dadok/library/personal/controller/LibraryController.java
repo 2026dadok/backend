@@ -45,9 +45,19 @@ public class LibraryController {
         return ResponseEntity.ok(Map.of("message", "서재에서 삭제되었습니다."));
     }
 
-    @GetMapping("/my-page")
+    @GetMapping({"/my-page", "/my_page"})
     public ResponseEntity<LibraryPageResponse> getMyLibrary(@AuthenticationPrincipal String email) {
         return ResponseEntity.ok(libraryService.getMyLibrary(email));
+    }
+
+    // 프론트 형식: PUT /library/pages { bookID, read_pages }
+    @PutMapping("/pages")
+    public ResponseEntity<LibraryBookResponse> updateReadPages(
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody UpdateReadPagesRequest request
+    ) {
+        return ResponseEntity.ok(libraryService.updateProgress(
+                email, request.bookId(), new UpdatePersonalProgressRequest(request.readPages())));
     }
 
     @PutMapping("/books/{bookId}/progress")

@@ -19,6 +19,10 @@ public interface ReadingLogRepository extends JpaRepository<ReadingLog, Long> {
     long sumSecondsByUser(User user);
 
     // 책을 읽은 날짜 목록 (중복 제거, 오래된 순)
+    // 날짜별 독서 시간 합계 (서고 달력)
+    @Query("select r.readDate, coalesce(sum(r.seconds), 0) from ReadingLog r where r.user = :user group by r.readDate order by r.readDate")
+    List<Object[]> sumSecondsByUserGroupByDate(User user);
+
     @Query("select distinct r.readDate from ReadingLog r where r.user = :user order by r.readDate")
     List<LocalDate> findReadDatesByUser(User user);
 
