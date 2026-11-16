@@ -98,9 +98,14 @@ public class LibraryService {
         }
         String title = request.title().trim();
         String author = request.author() == null ? null : request.author().trim();
+        String isbn = request.isbn() == null || request.isbn().isBlank() ? null : request.isbn().trim();
         int pages = request.totalPage() == null ? 0 : request.totalPage();
+        if (isbn != null) {
+            Book byIsbn = bookRepository.findByIsbn13(isbn).orElse(null);
+            if (byIsbn != null) return byIsbn;
+        }
         return bookRepository.findFirstByBookTitleAndAuthor(title, author)
-                .orElseGet(() -> bookRepository.save(new Book(title, null, null, author, null, null, pages, null)));
+                .orElseGet(() -> bookRepository.save(new Book(title, request.coverUrl(), null, author, null, isbn, pages, null)));
     }
 
     private User getUser(String email) {

@@ -21,4 +21,29 @@ public record LibraryBookResponse(
     public Long book_id() {
         return bookId;
     }
+
+    @JsonProperty("book_title")
+    public String book_title() {
+        return bookTitle;
+    }
+
+    @JsonProperty("cover_url")
+    public String cover_url() {
+        return coverUrl;
+    }
+
+    @JsonProperty("total_page")
+    public int total_page() {
+        return totalPages;
+    }
+
+    @JsonProperty("read_page")
+    public int read_page() {
+        return currentPage;
+    }
+
+    @JsonProperty("finished")
+    public boolean finished() {
+        return completed;
+    }
 }
