@@ -114,12 +114,24 @@ public class QuestService {
 
     // 오늘의 일일 퀘스트 목록 + 완료 여부 (마지막 항목: 전체 완료 보상)
     @Transactional(readOnly = true)
+    // 일일 퀘스트 목록 (전체 완료 보상은 제외 - getAllClearQuest로 따로 조회)
     public List<DailyQuestResponse> getDailyQuests(User user) {
         LocalDate today = LocalDate.now(KST);
         return questRepository.findAllByPeriod(QuestPeriod.DAILY).stream()
+                .filter(q -> q.getConditionType() != QuestCondition.ALL_DAILY)
                 .sorted(Comparator.comparing(Quest::getId))
                 .map(q -> new DailyQuestResponse(q.getId(), q.getTitle(), q.getRewardXp(), isCompleted(user, q, today)))
                 .toList();
+    }
+
+    // 일일 퀘스트 전체 완료 보상 (없으면 null)
+    public DailyQuestResponse getAllClearQuest(User user) {
+        LocalDate today = LocalDate.now(KST);
+        return questRepository.findAllByPeriod(QuestPeriod.DAILY).stream()
+                .filter(q -> q.getConditionType() == QuestCondition.ALL_DAILY)
+                .findFirst()
+                .map(q -> new DailyQuestResponse(q.getId(), q.getTitle(), q.getRewardXp(), isCompleted(user, q, today)))
+                .orElse(null);
     }
 
     // 이번 주 주간 퀘스트 + 진행도 (없으면 null)
