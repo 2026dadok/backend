@@ -20,8 +20,8 @@ public class MainPageService {
     private final UserStatRepository userStatRepository;
     private final QuestService questService;
 
-    public MainPageResponse getMainPage(String email) {
-        User user = userStatRepository.findUserByEmail(email)
+    public MainPageResponse getMainPage(String userId) {
+        User user = userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
         return new MainPageResponse(

@@ -45,8 +45,7 @@ public class LibraryService {
     @Transactional
     public LibraryBookResponse addBook(String email, AddLibraryBookRequest request) {
         User user = getUser(email);
-        Book book = bookRepository.findById(request.bookId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다."));
+        Book book = resolveBook(request);
         if (personalLibraryBookRepository.existsByUserAndBookBookId(user, book.getBookId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 개인 서재에 추가한 책입니다.");
         }
@@ -88,11 +87,27 @@ public class LibraryService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "개인 서재에 추가되지 않은 책입니다."));
     }
 
+    // bookId로 찾고, 없으면 제목·저자로 찾거나 새로 등록
+    private Book resolveBook(AddLibraryBookRequest request) {
+        if (request.bookId() != null) {
+            return bookRepository.findById(request.bookId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다."));
+        }
+        if (request.title() == null || request.title().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "책 번호 또는 제목이 필요합니다.");
+        }
+        String title = request.title().trim();
+        String author = request.author() == null ? null : request.author().trim();
+        int pages = request.totalPage() == null ? 0 : request.totalPage();
+        return bookRepository.findFirstByBookTitleAndAuthor(title, author)
+                .orElseGet(() -> bookRepository.save(new Book(title, null, null, author, null, null, pages, null)));
+    }
+
     private User getUser(String email) {
         if (email == null || email.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
-        return userRepository.findByEmail(email)
+        return userRepository.findByUserId(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 

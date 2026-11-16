@@ -32,15 +32,15 @@ public class ReadingService {
     private final ApplicationEventPublisher eventPublisher;
 
     // 독서 시간 저장 (POST /times)
-    public ReadTimeResponse saveReadTime(String email, ReadTimeRequest request) {
-        User user = findUser(email);
+    public ReadTimeResponse saveReadTime(String userId, ReadTimeRequest request) {
+        User user = findUser(userId);
 
         LocalDateTime now = LocalDateTime.now(KST);
         LocalDate today = now.toLocalDate();
 
         // 하루 합계 24시간 넘으면 거부 (시간 조작 방지)
         long before = readingLogRepository.sumSecondsByUserAndDate(user, today);
-        if (before + request.readTime() > MAX_SECONDS_PER_DAY) {
+        if (before + request.seconds() > MAX_SECONDS_PER_DAY) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "하루 독서 시간은 24시간을 넘을 수 없습니다.");
         }
 
@@ -49,13 +49,13 @@ public class ReadingService {
         boolean readBefore = readingLogRepository.existsByUserAndBookId(user, request.bookId());
 
         // 1. 기록 저장
-        readingLogRepository.save(new ReadingLog(user, request.bookId(), today, request.readTime(), now));
+        readingLogRepository.save(new ReadingLog(user, request.bookId(), today, request.seconds(), now));
 
         // 2. 이벤트 발행 (퀘스트, 업적, 리그 처리)
-        long todaySeconds = before + request.readTime();
+        long todaySeconds = before + request.seconds();
         eventPublisher.publishEvent(new ReadingCompletedEvent(
-                user, todaySeconds, today, firstRead, readBefore, 
-                now.minusSeconds(request.readTime()), now
+                user, todaySeconds, today, firstRead, readBefore,
+                now.minusSeconds(request.seconds()), now
         ));
 
         return new ReadTimeResponse("독서 시간이 저장되었습니다.", todaySeconds);
@@ -63,15 +63,15 @@ public class ReadingService {
 
     // 타이머 페이지 (GET /times/timer_page)
     @Transactional(readOnly = true)
-    public TimerPageResponse getTimerPage(String email) {
-        User user = findUser(email);
-        long goalSeconds = user.getDefaultTimerTime() * 60L;   // 분 → 초
+    public TimerPageResponse getTimerPage(String userId) {
+        User user = findUser(userId);
+        long goalMinutes = user.getDefaultTimerTime() / 60L;   // DB는 초 단위
         long todaySeconds = readingLogRepository.sumSecondsByUserAndDate(user, LocalDate.now(KST));
-        return new TimerPageResponse(goalSeconds, todaySeconds);
+        return new TimerPageResponse(goalMinutes, todaySeconds);
     }
 
-    private User findUser(String email) {
-        return userStatRepository.findUserByEmail(email)
+    private User findUser(String userId) {
+        return userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 }

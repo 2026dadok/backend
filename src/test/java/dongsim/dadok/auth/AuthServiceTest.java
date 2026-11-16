@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,7 +36,7 @@ class AuthServiceTest {
     @DisplayName("회원가입 성공 - 인증된 이메일 사용")
     void signUpSuccess() {
         // given
-        SignUpRequest request = new SignUpRequest("testuser", "test@test.com", "pw123!", "이름", LocalDate.now(), 1800);
+        SignUpRequest request = new SignUpRequest("testuser", "test@test.com", "pw123!", "이름", LocalDate.now(), LocalTime.ofSecondOfDay(1800));
         when(userRepository.existsByUserId("testuser")).thenReturn(false);
         when(verificationRepository.findVerifiedLatest("test@test.com", Verification.SIGNUP))
                 .thenReturn(Optional.of(mock(EmailVerification.class)));
@@ -52,7 +53,7 @@ class AuthServiceTest {
     @DisplayName("회원가입 실패 - 이메일 인증 안 됨")
     void signUpFail_NoVerification() {
         // given
-        SignUpRequest request = new SignUpRequest("testuser", "test@test.com", "pw123!", "이름", LocalDate.now(), 1800);
+        SignUpRequest request = new SignUpRequest("testuser", "test@test.com", "pw123!", "이름", LocalDate.now(), LocalTime.ofSecondOfDay(1800));
         when(userRepository.existsByUserId("testuser")).thenReturn(false);
         when(verificationRepository.findVerifiedLatest("test@test.com", Verification.SIGNUP))
                 .thenReturn(Optional.empty());
@@ -67,7 +68,7 @@ class AuthServiceTest {
     @DisplayName("회원가입 실패 - 아이디 중복")
     void signUpFail_DuplicateUserId() {
         // given
-        SignUpRequest request = new SignUpRequest("testuser", "test@test.com", "pw123!", "이름", LocalDate.now(), 1800);
+        SignUpRequest request = new SignUpRequest("testuser", "test@test.com", "pw123!", "이름", LocalDate.now(), LocalTime.ofSecondOfDay(1800));
         when(userRepository.existsByUserId("testuser")).thenReturn(true);
 
         // then

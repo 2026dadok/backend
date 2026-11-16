@@ -95,8 +95,8 @@ public class AchievementService {
     }
 
     // 업적 목록 + 달성 여부 + 사용 여부
-    public List<AchievementResponse> getAchievements(String email) {
-        User user = findUser(email);
+    public List<AchievementResponse> getAchievements(String userId) {
+        User user = findUser(userId);
         UserStat stat = getOrCreateStat(user);
         checkTier(user, stat.getXp());
 
@@ -114,8 +114,8 @@ public class AchievementService {
     }
 
     // 칭호 사용 (PUT /users/title)
-    public MessageResponse equipTitle(String email, Long achievementId) {
-        User user = findUser(email);
+    public MessageResponse equipTitle(String userId, Long achievementId) {
+        User user = findUser(userId);
         UserStat stat = getOrCreateStat(user);
         checkTier(user, stat.getXp());
 
@@ -153,8 +153,8 @@ public class AchievementService {
                 .orElseGet(() -> userStatRepository.save(new UserStat(user)));
     }
 
-    private User findUser(String email) {
-        return userStatRepository.findUserByEmail(email)
+    private User findUser(String userId) {
+        return userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 }

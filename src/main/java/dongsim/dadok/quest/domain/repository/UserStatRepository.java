@@ -11,7 +11,7 @@ public interface UserStatRepository extends JpaRepository<UserStat, Long> {
 
     Optional<UserStat> findByUser(User user);
 
-    // 토큰의 이메일로 User 조회
-    @Query("select u from User u where u.email = :email")
-    Optional<User> findUserByEmail(String email);
+    // 토큰의 아이디로 User 조회
+    @Query("select u from User u where u.userId = :userId")
+    Optional<User> findUserByUserId(String userId);
 }
