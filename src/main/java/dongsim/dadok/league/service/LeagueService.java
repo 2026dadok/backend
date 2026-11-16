@@ -39,8 +39,8 @@ public class LeagueService {
     private final ProfileImageService profileImageService;
 
     // 주간 경쟁 페이지 (GET /main/week_competition)
-    public WeekCompetitionResponse getWeekCompetition(String email) {
-        User me = userStatRepository.findUserByEmail(email)
+    public WeekCompetitionResponse getWeekCompetition(String userId) {
+        User me = userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
         LocalDate monday = thisMonday();

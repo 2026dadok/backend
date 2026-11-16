@@ -17,6 +17,9 @@ public enum ImageType {
         for (ImageType t : values()) {
             if (t.value.equalsIgnoreCase(value)) return t;
         }
+        if ("background".equalsIgnoreCase(value)) {
+            return BANNER;
+        }
         return null;
     }
 }

@@ -16,7 +16,7 @@ public class MainPageController {
 
     // 메인페이지 (로그인 후)
     @GetMapping("/auth/main_page")
-    public ResponseEntity<MainPageResponse> getMainPage(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(mainPageService.getMainPage(email));
+    public ResponseEntity<MainPageResponse> getMainPage(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(mainPageService.getMainPage(userId));
     }
 }

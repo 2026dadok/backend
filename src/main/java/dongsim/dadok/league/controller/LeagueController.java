@@ -16,7 +16,7 @@ public class LeagueController {
 
     // 주간 경쟁 페이지
     @GetMapping("/main/week_competition")
-    public ResponseEntity<WeekCompetitionResponse> getWeekCompetition(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(leagueService.getWeekCompetition(email));
+    public ResponseEntity<WeekCompetitionResponse> getWeekCompetition(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(leagueService.getWeekCompetition(userId));
     }
 }

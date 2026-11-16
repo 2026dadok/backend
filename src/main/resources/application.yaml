@@ -80,6 +80,11 @@ jwt:
   refresh-token-expiration: 1209600000 # 14일 (ms)
 
 
+# 이미지 업로드 설정
+upload:
+  profile-img-dir: ./uploads/profile
+  banner-img-dir: ./uploads/banner
+
 yes24:
   api:
     url: https://apis.yes24.com/v1/goods/itemList
@@ -87,4 +92,5 @@ yes24:
     bestseller-url: https://apis.yes24.com/v1/category/bestseller
     # 선행 0이 있는 YES24 카테고리 ID는 숫자가 아니라 문자열로 유지해야 한다.
     bestseller-category-id: "001"
-    key: ${YES24_API_KEY}
+    key: "test-key"
+

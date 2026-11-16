@@ -3,12 +3,16 @@ package dongsim.dadok.quest.service;
 import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.quest.domain.dto.AttendanceResponse;
+import dongsim.dadok.quest.domain.dto.DailyQuestListResponse;
 import dongsim.dadok.quest.domain.dto.DailyQuestResponse;
 import dongsim.dadok.quest.domain.dto.WeeklyQuestResponse;
+import dongsim.dadok.quest.domain.dto.WeeklyQuestSummaryResponse;
 import dongsim.dadok.quest.domain.entity.*;
 import dongsim.dadok.quest.domain.repository.QuestRepository;
 import dongsim.dadok.quest.domain.repository.UserQuestRepository;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
+import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
+import org.springframework.context.event.EventListener;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -33,11 +37,17 @@ public class QuestService {
     private final QuestRepository questRepository;
     private final UserQuestRepository userQuestRepository;
     private final UserStatRepository userStatRepository;
+    @EventListener
+    public void handleReadingCompleted(ReadingCompletedEvent event) {
+        checkReadTimeQuests(event.getUser(), event.getTodaySeconds(), event.getToday());
+    }
+
+
     private final AchievementService achievementService;
 
     // 출석 (POST /quests/attendance)
-    public AttendanceResponse attend(String email) {
-        User user = userStatRepository.findUserByEmail(email)
+    public AttendanceResponse attend(String userId) {
+        User user = userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
         Quest attendance = questRepository.findFirstByConditionType(QuestCondition.ATTENDANCE)
@@ -125,6 +135,42 @@ public class QuestService {
                     return new WeeklyQuestResponse(q.getId(), q.getTitle(), progress, q.getTargetValue(), q.getRewardXp(), completed);
                 })
                 .orElse(null);
+    }
+
+    // GET /quests/daily
+    @Transactional(readOnly = true)
+    public DailyQuestListResponse getDailyQuestList(String userId) {
+        User user = findUser(userId);
+        LocalDate today = LocalDate.now(KST);
+        List<DailyQuestListResponse.Item> items = new java.util.ArrayList<>();
+        int allClearXp = 0;
+        boolean allClearDone = false;
+        for (Quest q : questRepository.findAllByPeriod(QuestPeriod.DAILY).stream()
+                .sorted(Comparator.comparing(Quest::getId)).toList()) {
+            boolean done = isCompleted(user, q, today);
+            if (q.getConditionType() == QuestCondition.ALL_DAILY) {
+                allClearXp = q.getRewardXp();
+                allClearDone = done;
+            } else {
+                items.add(new DailyQuestListResponse.Item(q.getId(), q.getTitle(), q.getRewardXp(), done));
+            }
+        }
+        return new DailyQuestListResponse(items, allClearXp, allClearDone);
+    }
+
+    // GET /quests/weekly
+    @Transactional(readOnly = true)
+    public WeeklyQuestSummaryResponse getWeeklyQuestSummary(String userId) {
+        WeeklyQuestResponse w = getWeeklyQuest(findUser(userId));
+        if (w == null) {
+            return new WeeklyQuestSummaryResponse("", 0, 0, 0, false);
+        }
+        return new WeeklyQuestSummaryResponse(w.title(), w.progress(), w.target(), w.rewardXp(), w.completed());
+    }
+
+    private User findUser(String userId) {
+        return userStatRepository.findUserByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 
     // 누적 XP (기록이 없으면 0)

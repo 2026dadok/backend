@@ -21,14 +21,14 @@ public class AchievementController {
 
     // 업적 목록 (마이페이지 업적 영역)
     @GetMapping("/achievements")
-    public ResponseEntity<List<AchievementResponse>> getAchievements(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(achievementService.getAchievements(email));
+    public ResponseEntity<List<AchievementResponse>> getAchievements(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(achievementService.getAchievements(userId));
     }
 
     // 칭호 사용
     @PutMapping("/title")
-    public ResponseEntity<MessageResponse> equipTitle(@AuthenticationPrincipal String email,
+    public ResponseEntity<MessageResponse> equipTitle(@AuthenticationPrincipal String userId,
                                                       @Valid @RequestBody TitleRequest request) {
-        return ResponseEntity.ok(achievementService.equipTitle(email, request.titleId()));
+        return ResponseEntity.ok(achievementService.equipTitle(userId, request.titleId()));
     }
 }

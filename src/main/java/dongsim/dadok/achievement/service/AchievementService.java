@@ -12,6 +12,12 @@ import dongsim.dadok.quest.domain.entity.Tier;
 import dongsim.dadok.quest.domain.entity.UserStat;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import lombok.RequiredArgsConstructor;
+import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
+import org.springframework.context.event.EventListener;
+import java.time.LocalTime;
+import java.time.LocalDate;
+
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +43,29 @@ public class AchievementService {
     // 숫자 조건 업적 검사: value가 목표값 이상인 업적을 모두 달성 처리
     // 예) check(user, FINISH_COUNT, 10) → 완독의 맛(1), 똑똑이(10) 달성
     // 반환값: 새로 달성한 칭호명 목록
+    @EventListener
+    public void handleReadingCompleted(ReadingCompletedEvent event) {
+        checkReadingAchievements(event.getUser(), event.isFirstRead(), event.isReadBefore(),
+                event.getStartedAt(), event.getEndedAt(), event.getToday());
+    }
+
+    private void checkReadingAchievements(User user, boolean firstRead, boolean readBefore,
+                                          LocalDateTime startedAt, LocalDateTime endedAt, LocalDate today) {
+        if (firstRead) {
+            check(user, AchievementCondition.FIRST_READ, 1);
+        }
+        if (readBefore) {
+            check(user, AchievementCondition.RESUME_READ, 1);
+        }
+        if (isNightTime(startedAt.toLocalTime()) || isNightTime(endedAt.toLocalTime())) {
+            check(user, AchievementCondition.NIGHT_READ, 1);
+        }
+    }
+
+    private boolean isNightTime(LocalTime time) {
+        return time.getHour() >= 23 || time.getHour() < 5;
+    }
+
     public List<String> check(User user, AchievementCondition condition, int value) {
         List<String> newly = new ArrayList<>();
         for (Achievement a : achievementRepository.findAllByConditionType(condition)) {
@@ -66,8 +95,8 @@ public class AchievementService {
     }
 
     // 업적 목록 + 달성 여부 + 사용 여부
-    public List<AchievementResponse> getAchievements(String email) {
-        User user = findUser(email);
+    public List<AchievementResponse> getAchievements(String userId) {
+        User user = findUser(userId);
         UserStat stat = getOrCreateStat(user);
         checkTier(user, stat.getXp());
 
@@ -85,8 +114,8 @@ public class AchievementService {
     }
 
     // 칭호 사용 (PUT /users/title)
-    public MessageResponse equipTitle(String email, Long achievementId) {
-        User user = findUser(email);
+    public MessageResponse equipTitle(String userId, Long achievementId) {
+        User user = findUser(userId);
         UserStat stat = getOrCreateStat(user);
         checkTier(user, stat.getXp());
 
@@ -124,8 +153,8 @@ public class AchievementService {
                 .orElseGet(() -> userStatRepository.save(new UserStat(user)));
     }
 
-    private User findUser(String email) {
-        return userStatRepository.findUserByEmail(email)
+    private User findUser(String userId) {
+        return userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 }

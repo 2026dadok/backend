@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
@@ -41,16 +42,26 @@ public class SharedReadingService {
 
     @Transactional
     public Long create(String creatorUserId, CreateSharedReadingRequest request) {
-        User partner = userRepository.findByEmail(request.partnerEmail())
-                .filter(user -> user.getName().equals(request.partnerName()))
+        if (request.partnerName() == null || request.partnerName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "초대할 친구의 이름을 입력해 주세요.");
+        }
+        Optional<User> found;
+        if (request.partnerUserId() != null && !request.partnerUserId().isBlank()) {
+            found = userRepository.findByUserId(request.partnerUserId().trim());
+        } else if (request.partnerEmail() != null && !request.partnerEmail().isBlank()) {
+            found = userRepository.findByEmail(request.partnerEmail().trim());
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "초대할 친구의 아이디를 입력해 주세요.");
+        }
+        User partner = found
+                .filter(user -> user.getName().equals(request.partnerName().trim()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "초대할 친구의 계정 아이디 또는 이름이 일치하지 않습니다."));
-        if (creatorUserId.equals(partner.getEmail())) {
+        if (creatorUserId.equals(partner.getUserId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "본인은 공동 읽기에 초대할 수 없습니다.");
         }
 
-        Book book = bookRepository.findById(request.bookId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다."));
-        String pairKey = createPairKey(creatorUserId, partner.getEmail());
+        Book book = findBook(request);
+        String pairKey = createPairKey(creatorUserId, partner.getUserId());
         if (sharedReadingRepository.existsByBookBookIdAndPairKeyAndStatusIn(
                 book.getBookId(), pairKey, List.of(SharedReadingStatus.ACTIVE, SharedReadingStatus.WINNER_DECIDED))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "두 사용자는 이 책을 이미 함께 읽고 있습니다.");
@@ -58,19 +69,19 @@ public class SharedReadingService {
 
         SharedReading sharedReading = new SharedReading(book, creatorUserId, pairKey);
         sharedReading.addMember(creatorUserId);
-        sharedReading.addMember(partner.getEmail());
+        sharedReading.addMember(partner.getUserId());
         return sharedReadingRepository.save(sharedReading).getSharedReadingId();
     }
 
     public List<SharedReadingResponse> getMine(String userId) {
         return sharedReadingRepository.findDistinctByMembersUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(this::toResponse)
+                .map(reading -> toResponse(reading, userId))
                 .toList();
     }
 
     public SharedReadingResponse getDetail(String userId, Long sharedReadingId) {
         SharedReading sharedReading = getParticipantReading(userId, sharedReadingId);
-        return toResponse(sharedReading);
+        return toResponse(sharedReading, userId);
     }
 
     @Transactional
@@ -100,7 +111,7 @@ public class SharedReadingService {
         if (sharedReading.getMembers().stream().allMatch(it -> it.getCompletedAt() != null)) {
             sharedReading.complete();
         }
-        return toResponse(sharedReading);
+        return toResponse(sharedReading, userId);
     }
 
     @Transactional
@@ -151,7 +162,7 @@ public class SharedReadingService {
         return sharedReading;
     }
 
-    private SharedReadingResponse toResponse(SharedReading sharedReading) {
+    private SharedReadingResponse toResponse(SharedReading sharedReading, String viewerUserId) {
         int totalPages = sharedReading.getBook().getPages();
         List<SharedReadingResponse.MemberProgressResponse> members = sharedReading.getMembers().stream()
                 .map(member -> new SharedReadingResponse.MemberProgressResponse(
@@ -161,12 +172,34 @@ public class SharedReadingService {
                 .toList();
         return new SharedReadingResponse(
                 sharedReading.getSharedReadingId(), sharedReading.getBook().getBookId(), sharedReading.getBook().getBookTitle(),
-                sharedReading.getBook().getCoverUrl(), sharedReading.getStatus(), sharedReading.getWinnerUserId(), members
+                sharedReading.getBook().getCoverUrl(), sharedReading.getStatus(), sharedReading.getWinnerUserId(), members,
+                totalPages, sharedReading.getCreatedAt(), viewerUserId
         );
     }
 
+    // bookId로 찾고, 없으면 ISBN → 제목·저자 순으로 찾고, 그래도 없으면 새로 등록
+    private Book findBook(CreateSharedReadingRequest request) {
+        if (request.bookId() != null) {
+            return bookRepository.findById(request.bookId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다."));
+        }
+        if (request.title() == null || request.title().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "책 번호 또는 제목이 필요합니다.");
+        }
+        String title = request.title().trim();
+        String author = request.author() == null ? null : request.author().trim();
+        String isbn = request.isbn() == null || request.isbn().isBlank() ? null : request.isbn().trim();
+        int pages = request.totalPage() == null ? 0 : request.totalPage();
+        if (isbn != null) {
+            Book byIsbn = bookRepository.findByIsbn13(isbn).orElse(null);
+            if (byIsbn != null) return byIsbn;
+        }
+        return bookRepository.findFirstByBookTitleAndAuthor(title, author)
+                .orElseGet(() -> bookRepository.save(new Book(title, null, null, author, null, isbn, pages, null)));
+    }
+
     private String getUserName(String userId) {
-        return userRepository.findByEmail(userId).map(User::getName).orElse("알 수 없음");
+        return userRepository.findByUserId(userId).map(User::getName).orElse("알 수 없음");
     }
 
     private String createPairKey(String firstUserId, String secondUserId) {
