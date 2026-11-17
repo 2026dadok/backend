@@ -9,6 +9,7 @@ import dongsim.dadok.book.domain.entity.Book;
 import dongsim.dadok.book.repository.BookRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,7 +58,7 @@ public class RatingService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다.");
         }
 
-        Page<Rating> ratings = ratingRepository.findByBookBookId(bookId, PageRequest.of(page - 1, PAGE_SIZE));
+        Page<Rating> ratings = ratingRepository.findByBookBookId(bookId, PageRequest.of(page - 1, PAGE_SIZE, Sort.by("ratingId").descending()));
         return new RatingListResponse(
                 ratings.getTotalElements(),
                 ratings.map(RatingResponse::from).getContent()

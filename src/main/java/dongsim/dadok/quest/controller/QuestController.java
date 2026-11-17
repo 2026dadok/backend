@@ -19,7 +19,7 @@ public class QuestController {
 
     private final QuestService questService;
 
-    // 출석: 로그인 토큰의 이메일로 사용자 확인
+    // 출석: 로그인 토큰의 아이디로 사용자 확인
     @PostMapping("/attendance")
     public ResponseEntity<AttendanceResponse> attend(@AuthenticationPrincipal String userId) {
         return ResponseEntity.ok(questService.attend(userId));

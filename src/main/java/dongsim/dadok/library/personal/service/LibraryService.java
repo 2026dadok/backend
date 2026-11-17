@@ -47,8 +47,8 @@ public class LibraryService {
     }
 
     @Transactional
-    public LibraryBookResponse addBook(String email, AddLibraryBookRequest request) {
-        User user = getUser(email);
+    public LibraryBookResponse addBook(String userId, AddLibraryBookRequest request) {
+        User user = getUser(userId);
         Book book = resolveBook(request);
         if (personalLibraryBookRepository.existsByUserAndBookBookId(user, book.getBookId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 개인 서재에 추가한 책입니다.");
@@ -59,13 +59,13 @@ public class LibraryService {
     }
 
     @Transactional
-    public void deleteBook(String email, Long bookId) {
-        PersonalLibraryBook libraryBook = getLibraryBook(getUser(email), bookId);
+    public void deleteBook(String userId, Long bookId) {
+        PersonalLibraryBook libraryBook = getLibraryBook(getUser(userId), bookId);
         personalLibraryBookRepository.delete(libraryBook);
     }
 
-    public LibraryPageResponse getMyLibrary(String email) {
-        User user = getUser(email);
+    public LibraryPageResponse getMyLibrary(String userId) {
+        User user = getUser(userId);
         List<LibraryBookResponse> books = personalLibraryBookRepository.findByUserOrderByCreatedAtDesc(user).stream()
                 .map(b -> toResponse(b, 0))
                 .toList();
@@ -73,8 +73,8 @@ public class LibraryService {
     }
 
     @Transactional
-    public LibraryBookResponse updateProgress(String email, Long bookId, UpdatePersonalProgressRequest request) {
-        User user = getUser(email);
+    public LibraryBookResponse updateProgress(String userId, Long bookId, UpdatePersonalProgressRequest request) {
+        User user = getUser(userId);
         PersonalLibraryBook libraryBook = getLibraryBook(user, bookId);
         int totalPages = libraryBook.getBook().getPages();
         // 전체 쪽수를 모르는 책(0)은 상한 검사를 하지 않는다
@@ -119,11 +119,11 @@ public class LibraryService {
                 .orElseGet(() -> bookRepository.save(new Book(title, request.coverUrl(), null, author, null, isbn, pages, null)));
     }
 
-    private User getUser(String email) {
-        if (email == null || email.isBlank()) {
+    private User getUser(String userId) {
+        if (userId == null || userId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
-        return userRepository.findByUserId(email)
+        return userRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 

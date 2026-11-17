@@ -30,42 +30,42 @@ public class LibraryController {
 
     @PostMapping("/books")
     public ResponseEntity<LibraryBookResponse> addBook(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal String userId,
             @Valid @RequestBody AddLibraryBookRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(libraryService.addBook(email, request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(libraryService.addBook(userId, request));
     }
 
     @DeleteMapping("/books/{bookId}")
     public ResponseEntity<Map<String, String>> deleteBook(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal String userId,
             @PathVariable Long bookId
     ) {
-        libraryService.deleteBook(email, bookId);
+        libraryService.deleteBook(userId, bookId);
         return ResponseEntity.ok(Map.of("message", "서재에서 삭제되었습니다."));
     }
 
     @GetMapping({"/my-page", "/my_page"})
-    public ResponseEntity<LibraryPageResponse> getMyLibrary(@AuthenticationPrincipal String email) {
-        return ResponseEntity.ok(libraryService.getMyLibrary(email));
+    public ResponseEntity<LibraryPageResponse> getMyLibrary(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(libraryService.getMyLibrary(userId));
     }
 
     // 프론트 형식: PUT /library/pages { bookID, read_pages }
     @PutMapping("/pages")
     public ResponseEntity<LibraryBookResponse> updateReadPages(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal String userId,
             @Valid @RequestBody UpdateReadPagesRequest request
     ) {
         return ResponseEntity.ok(libraryService.updateProgress(
-                email, request.bookId(), new UpdatePersonalProgressRequest(request.readPages())));
+                userId, request.bookId(), new UpdatePersonalProgressRequest(request.readPages())));
     }
 
     @PutMapping("/books/{bookId}/progress")
     public ResponseEntity<LibraryBookResponse> updateProgress(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal String userId,
             @PathVariable Long bookId,
             @Valid @RequestBody UpdatePersonalProgressRequest request
     ) {
-        return ResponseEntity.ok(libraryService.updateProgress(email, bookId, request));
+        return ResponseEntity.ok(libraryService.updateProgress(userId, bookId, request));
     }
 }
