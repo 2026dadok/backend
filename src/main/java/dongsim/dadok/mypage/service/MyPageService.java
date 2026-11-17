@@ -41,7 +41,7 @@ public class MyPageService {
         User user = userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
-        long allReadingMinutes = readingLogRepository.sumSecondsByUser(user) / 60;
+        long allReadingSeconds = readingLogRepository.sumSecondsByUser(user);
         int sequenceDay = maxStreak(readingLogRepository.findReadDatesByUser(user));
         List<MyPageResponse.Achievement> achievements = achievementService.getAchievements(userId).stream()
                 .map(a -> new MyPageResponse.Achievement(
@@ -52,7 +52,7 @@ public class MyPageService {
                 user.getUserId(),
                 user.getName(),
                 achievementService.getEquippedTitle(user),
-                allReadingMinutes,
+                allReadingSeconds,
                 sequenceDay,
                 0,      // TODO: 쪽수 기록 연결
                 leagueService.countTop5(user),
