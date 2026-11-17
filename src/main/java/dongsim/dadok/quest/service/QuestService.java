@@ -93,6 +93,8 @@ public class QuestService {
     // 읽은 쪽수가 늘었을 때 (주간 "이번 주 N페이지 읽기")
     public int addReadPages(User user, int pages) {
         if (pages <= 0) return 0;
+        // 같은 사용자의 요청이 동시에 와도 진행도가 덮어써지지 않게 사용자별로 잠근다
+        lockUser(user);
         LocalDate monday = LocalDate.now(KST).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         int gainedXp = 0;
         for (Quest quest : questRepository.findAllByConditionType(QuestCondition.READ_PAGES)) {
@@ -228,6 +230,13 @@ public class QuestService {
 
     private boolean isCompleted(User user, Quest quest, LocalDate periodStart) {
         return userQuestRepository.existsByUserAndQuestAndPeriodStartAndCompletedAtIsNotNull(user, quest, periodStart);
+    }
+
+    private void lockUser(User user) {
+        if (userStatRepository.findByUserForUpdate(user).isEmpty()) {
+            userStatRepository.saveAndFlush(new UserStat(user));
+            userStatRepository.findByUserForUpdate(user);
+        }
     }
 
     // XP 지급: 기록(UserStat)이 없으면 새로 만들고 더함
