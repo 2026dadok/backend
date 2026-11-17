@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -73,7 +74,7 @@ class AuthServiceTest {
 
         // then
         assertThatThrownBy(() -> authService.signUp(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 사용 중인 아이디입니다.");
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("이미 사용 중인 아이디입니다.");
     }
 }

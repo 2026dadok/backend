@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -79,6 +81,28 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
         return ResponseEntity.ok(tokens);
+    }
+
+    // 토큰 재발급: refreshToken 쿠키(또는 본문 refreshToken)로 새 accessToken 발급
+    @PostMapping("/refresh")
+    public ResponseEntity<Map<String, String>> refresh(
+            @CookieValue(value = "refreshToken", required = false) String cookieToken,
+            @RequestBody(required = false) Map<String, String> body,
+            HttpServletResponse response) {
+
+        String refreshToken = cookieToken != null ? cookieToken : (body == null ? null : body.get("refreshToken"));
+        TokenResponse tokens = authService.refresh(refreshToken);
+
+        ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokens.refreshToken())
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(14 * 24 * 60 * 60)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
+
+        return ResponseEntity.ok(Map.of("accessToken", tokens.accessToken()));
     }
 
     // 로그아웃

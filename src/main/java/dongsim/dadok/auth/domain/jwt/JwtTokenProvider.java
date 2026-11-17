@@ -31,6 +31,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(userId)
+                .claim(TYPE_CLAIM, ACCESS)
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(secretKey)
@@ -43,6 +44,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(userId)
+                .claim(TYPE_CLAIM, REFRESH)
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(secretKey)
@@ -56,6 +58,28 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
+    }
+
+    // 토큰 종류 구분 (access 토큰만 API 인증에 쓰고, refresh 토큰은 재발급에만 쓴다)
+    public static final String TYPE_CLAIM = "typ";
+    public static final String ACCESS = "access";
+    public static final String REFRESH = "refresh";
+
+    public boolean isAccessToken(String token) {
+        return ACCESS.equals(getType(token));
+    }
+
+    public boolean isRefreshToken(String token) {
+        return REFRESH.equals(getType(token));
+    }
+
+    private String getType(String token) {
+        try {
+            return Jwts.parser().verifyWith(secretKey).build()
+                    .parseSignedClaims(token).getPayload().get(TYPE_CLAIM, String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public boolean validateToken(String token) {
