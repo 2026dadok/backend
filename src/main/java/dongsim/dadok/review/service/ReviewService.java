@@ -1,5 +1,6 @@
 package dongsim.dadok.review.service;
 
+import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.library.personal.domain.entity.PersonalLibraryBook;
 import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
 import dongsim.dadok.review.domain.dto.request.ReviewCreateRequest;
@@ -41,7 +42,8 @@ public class ReviewService {
 
     // 특정 서재 책의 감상문 카드 전체 목록 조회 (1일차부터 순서대로 번호 매김)
     public List<ReviewCardResponse> getReviewsByLibBook(String userId, Long libBookId) {
-        requireOwnedLibBook(userId, libBookId);
+        // 감상문은 서재 책에 달리므로, 서재 책의 주인이 곧 작성자다
+        User writer = requireOwnedLibBook(userId, libBookId).getUser();
 
         List<Review> reviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(libBookId);
         List<ReviewCardResponse> responses = new ArrayList<>();
@@ -50,7 +52,8 @@ public class ReviewService {
             int dayIndex = i + 1;
             // 마지막 작성 글 여부 (디자인의 마지막 완독 표시용 플래그)
             boolean isLast = (i == reviews.size() - 1);
-            responses.add(new ReviewCardResponse(reviews.get(i), dayIndex, isLast));
+            responses.add(new ReviewCardResponse(reviews.get(i), dayIndex, isLast,
+                    writer.getUserId(), writer.getName()));
         }
         return responses;
     }
@@ -58,6 +61,7 @@ public class ReviewService {
     // 카드 클릭 시 모달 단건 상세 조회
     public ReviewDetailResponse getReviewDetail(String userId, Long reviewId) {
         Review targetReview = findOwnedReview(userId, reviewId);
+        User writer = requireOwnedLibBook(userId, targetReview.getLibBookId()).getUser();
 
         // 등록된 전체 글 순서를 기준으로 몇 일차인지 계산
         List<Review> allReviews = reviewRepository.findAllByLibBookIdOrderByReviewDateAsc(targetReview.getLibBookId());
@@ -71,7 +75,8 @@ public class ReviewService {
                 break;
             }
         }
-        return new ReviewDetailResponse(targetReview, dayIndex, isCompleted);
+        return new ReviewDetailResponse(targetReview, dayIndex, isCompleted,
+                writer.getUserId(), writer.getName());
     }
 
     // 감상문 내용 수정 (변경 감지로 자동 갱신)
@@ -99,13 +104,14 @@ public class ReviewService {
 
     // 서재 책이 존재하고 로그인한 사용자의 것인지 확인한다.
     // 없는 책이면 404, 남의 책이면 403 을 돌려준다.
-    private void requireOwnedLibBook(String userId, Long libBookId) {
+    private PersonalLibraryBook requireOwnedLibBook(String userId, Long libBookId) {
         requireLogin(userId);
         PersonalLibraryBook libBook = personalLibraryBookRepository.findById(libBookId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "개인 서재에 추가되지 않은 책입니다."));
         if (!userId.equals(libBook.getUser().getUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인 서재의 감상문만 이용할 수 있습니다.");
         }
+        return libBook;
     }
 
     private void requireLogin(String userId) {
