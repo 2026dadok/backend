@@ -15,8 +15,10 @@ public class ReviewDetailResponse {
     private final String review;
     private final String reviewDate;
     private final LocalDateTime createDate;
+    private final String writerId;   // 작성자 로그인 아이디
+    private final String writerName; // 작성자 이름
 
-    public ReviewDetailResponse(Review entity, int dayIndex, boolean isCompleted) {
+    public ReviewDetailResponse(Review entity, int dayIndex, boolean isCompleted, String writerId, String writerName) {
         this.reviewId = entity.getId();
         this.libBookId = entity.getLibBookId();
         this.review = entity.getReview();
@@ -24,5 +26,7 @@ public class ReviewDetailResponse {
         this.reviewDate = entity.getReviewDate().format(DateTimeFormatter.ofPattern("yyyy. M. d"));
 
         this.dayDisplay = isCompleted ? dayIndex + "일차 | 완독" : dayIndex + "일차";
+        this.writerId = writerId;
+        this.writerName = writerName;
     }
 }
