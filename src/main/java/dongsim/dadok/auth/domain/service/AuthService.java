@@ -175,8 +175,15 @@ public class AuthService {
 
     // 5. 로그아웃
     @Transactional
-    public void logout(String userId) {
-        refreshTokenRepository.deleteByUserId(userId);
+    public void logout(String userId, String refreshToken) {
+        String target = userId;
+        if ((target == null || "anonymousUser".equals(target)) && refreshToken != null
+                && jwtTokenProvider.validateToken(refreshToken) && jwtTokenProvider.isRefreshToken(refreshToken)) {
+            target = jwtTokenProvider.getUserIdFromToken(refreshToken);
+        }
+        if (target != null && !"anonymousUser".equals(target)) {
+            refreshTokenRepository.deleteByUserId(target);
+        }
     }
 
     // 6. 아이디 찾기 (이름, 생년월일, 인증완료된 이메일 정보 확인)

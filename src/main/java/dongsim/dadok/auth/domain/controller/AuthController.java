@@ -5,6 +5,7 @@ import dongsim.dadok.auth.domain.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,10 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
+    // refresh 쿠키 Secure 여부. https 배포에서는 true, http 로 개발할 때는 false (http 에서는 Secure 쿠키가 저장되지 않음)
+    @Value("${app.cookie.secure:false}")
+    private boolean secureCookie;
 
     // 이메일 인증번호 발송
     @PostMapping("/email_send")
@@ -63,7 +68,7 @@ public class AuthController {
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(
+    public ResponseEntity<Map<String, String>> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response) {
 
@@ -72,7 +77,7 @@ public class AuthController {
         // Refresh Token을 HttpOnly 쿠키로 설정
         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokens.refreshToken())
                 .httpOnly(true)
-                .secure(true)
+                .secure(secureCookie)
                 .path("/")
                 .maxAge(14 * 24 * 60 * 60)
                 .sameSite("Lax")
@@ -80,7 +85,8 @@ public class AuthController {
 
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
-        return ResponseEntity.ok(tokens);
+        // refresh 토큰은 httpOnly 쿠키로만 주고 본문에는 access 토큰만 넣는다
+        return ResponseEntity.ok(Map.of("accessToken", tokens.accessToken()));
     }
 
     // 토큰 재발급: refreshToken 쿠키(또는 본문 refreshToken)로 새 accessToken 발급
@@ -95,7 +101,7 @@ public class AuthController {
 
         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokens.refreshToken())
                 .httpOnly(true)
-                .secure(true)
+                .secure(secureCookie)
                 .path("/")
                 .maxAge(14 * 24 * 60 * 60)
                 .sameSite("Lax")
@@ -109,13 +115,15 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<String> logout(
             @AuthenticationPrincipal String userId,
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
             HttpServletResponse response) {
 
-        authService.logout(userId);
+        // access 토큰이 만료돼도 refresh 쿠키로 사용자를 찾아 서버의 refresh 토큰을 지운다
+        authService.logout(userId, refreshToken);
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(secureCookie)
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")
