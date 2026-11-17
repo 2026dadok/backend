@@ -2,6 +2,7 @@ package dongsim.dadok.mypage.service;
 
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.league.service.LeagueService;
+import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
 import dongsim.dadok.profile.service.ProfileImageService;
 import dongsim.dadok.achievement.domain.dto.MessageResponse;
 import dongsim.dadok.auth.domain.repository.RefreshTokenRepository;
@@ -35,13 +36,15 @@ public class MyPageService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AchievementService achievementService;
+    private final PersonalLibraryBookRepository personalLibraryBookRepository;
 
     @Transactional
     public MyPageResponse getMyPage(String userId) {
         User user = userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
-        long allReadingSeconds = readingLogRepository.sumSecondsByUser(user);
+        long allReadingMinutes = readingLogRepository.sumSecondsByUser(user) / 60;
+        int allReadingPages = (int) personalLibraryBookRepository.sumCurrentPageByUser(user);
         int sequenceDay = maxStreak(readingLogRepository.findReadDatesByUser(user));
         List<MyPageResponse.Achievement> achievements = achievementService.getAchievements(userId).stream()
                 .map(a -> new MyPageResponse.Achievement(
@@ -52,9 +55,9 @@ public class MyPageService {
                 user.getUserId(),
                 user.getName(),
                 achievementService.getEquippedTitle(user),
-                allReadingSeconds,
+                allReadingMinutes,
                 sequenceDay,
-                0,      // TODO: 쪽수 기록 연결
+                allReadingPages,
                 leagueService.countTop5(user),
                 profileImageService.profileUrl(user),
                 profileImageService.bannerUrl(user),

@@ -13,7 +13,9 @@ import dongsim.dadok.quest.domain.entity.Tier;
 import dongsim.dadok.quest.domain.entity.UserStat;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.repository.ReadingLogRepository;
+import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +74,12 @@ public class LeagueService {
     public WeeklyEntry getOrCreateEntry(User user, LocalDate monday) {
         return weeklyEntryRepository.findByUserAndWeekStart(user, monday)
                 .orElseGet(() -> weeklyEntryRepository.save(new WeeklyEntry(user, monday, Tier.of(getXp(user)))));
+    }
+
+    // 독서 시간 저장 이벤트 → 리그 참가 처리
+    @EventListener
+    public void handleReadingCompleted(ReadingCompletedEvent event) {
+        onReadingSaved(event.getUser());
     }
 
     // 독서 시간이 저장된 뒤 호출: 이번 주 리그 참가 + 현재 순위로 업적 검사

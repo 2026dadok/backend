@@ -78,6 +78,36 @@ public class QuestService {
         return gainedXp;
     }
 
+    // 새 책을 개인 서재에 등록했을 때 (일일 "새로운 도서 등록하기")
+    public int onBookRegistered(User user) {
+        LocalDate today = LocalDate.now(KST);
+        int gainedXp = 0;
+        for (Quest quest : questRepository.findAllByConditionType(QuestCondition.BOOK_REGISTER)) {
+            if (!isCompleted(user, quest, today)) {
+                gainedXp += complete(user, quest, today);
+            }
+        }
+        return gainedXp;
+    }
+
+    // 읽은 쪽수가 늘었을 때 (주간 "이번 주 N페이지 읽기")
+    public int addReadPages(User user, int pages) {
+        if (pages <= 0) return 0;
+        LocalDate monday = LocalDate.now(KST).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        int gainedXp = 0;
+        for (Quest quest : questRepository.findAllByConditionType(QuestCondition.READ_PAGES)) {
+            UserQuest record = userQuestRepository.findByUserAndQuestAndPeriodStart(user, quest, monday)
+                    .orElseGet(() -> userQuestRepository.save(UserQuest.inProgress(user, quest, monday)));
+            if (record.getCompletedAt() != null) continue;
+            record.addProgress(pages);
+            if (record.getProgress() >= quest.getTargetValue()) {
+                record.markCompleted();
+                gainedXp += giveXp(user, quest.getRewardXp());
+            }
+        }
+        return gainedXp;
+    }
+
     // 퀘스트 완료 공통 처리
     // 출석뿐 아니라 독서 시간, 책 등록 등 다른 기능에서도 이걸 부름
     // 반환값: 이번에 받은 XP 합계

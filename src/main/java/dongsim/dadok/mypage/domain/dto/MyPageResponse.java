@@ -10,7 +10,7 @@ public record MyPageResponse(
         @JsonProperty("ID") String loginId,
         @JsonProperty("name") String name,
         @JsonProperty("title") String title,                     // 사용 중인 칭호 (없으면 null)
-        @JsonProperty("all_reading_time") long allReadingTime,   // 총 독서 시간 (초)
+        @JsonProperty("all_reading_time") long allReadingTime,   // 총 독서 시간 (분)
         @JsonProperty("sequence_day") int sequenceDay,           // 최대 연속 독서일
         @JsonProperty("all_reading_page") int allReadingPage,    // 총 독서 페이지
         @JsonProperty("league_in5") int leagueIn5,               // 주간 경쟁 5위권 진입 횟수

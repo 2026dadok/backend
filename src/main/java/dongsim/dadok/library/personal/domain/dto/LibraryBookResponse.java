@@ -14,7 +14,9 @@ public record LibraryBookResponse(
         int totalPages,
         int percent,
         boolean completed,
-        LocalDateTime completedAt
+        LocalDateTime completedAt,
+        @JsonProperty("created_at") LocalDateTime createdAt,   // 서재에 담은 시각
+        @JsonProperty("gained_xp") int gainedXp                // 이번 요청으로 받은 퀘스트 XP
 ) {
     // 프론트 호환 키
     @JsonProperty("book_id")

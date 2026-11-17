@@ -10,6 +10,7 @@ import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.auth.domain.repository.UserRepository;
 import dongsim.dadok.book.domain.entity.Book;
 import dongsim.dadok.book.repository.BookRepository;
+import dongsim.dadok.quest.service.QuestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,17 +30,20 @@ public class LibraryService {
     private final PersonalReadingLogRepository personalReadingLogRepository;
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
+    private final QuestService questService;
 
     public LibraryService(
             PersonalLibraryBookRepository personalLibraryBookRepository,
             PersonalReadingLogRepository personalReadingLogRepository,
             UserRepository userRepository,
-            BookRepository bookRepository
+            BookRepository bookRepository,
+            QuestService questService
     ) {
         this.personalLibraryBookRepository = personalLibraryBookRepository;
         this.personalReadingLogRepository = personalReadingLogRepository;
         this.userRepository = userRepository;
         this.bookRepository = bookRepository;
+        this.questService = questService;
     }
 
     @Transactional
@@ -49,7 +53,9 @@ public class LibraryService {
         if (personalLibraryBookRepository.existsByUserAndBookBookId(user, book.getBookId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 개인 서재에 추가한 책입니다.");
         }
-        return toResponse(personalLibraryBookRepository.save(new PersonalLibraryBook(user, book)));
+        PersonalLibraryBook saved = personalLibraryBookRepository.save(new PersonalLibraryBook(user, book));
+        int gainedXp = questService.onBookRegistered(user);
+        return toResponse(saved, gainedXp);
     }
 
     @Transactional
@@ -61,25 +67,30 @@ public class LibraryService {
     public LibraryPageResponse getMyLibrary(String email) {
         User user = getUser(email);
         List<LibraryBookResponse> books = personalLibraryBookRepository.findByUserOrderByCreatedAtDesc(user).stream()
-                .map(this::toResponse)
+                .map(b -> toResponse(b, 0))
                 .toList();
         return new LibraryPageResponse(books, personalReadingLogRepository.findDistinctReadDatesByUser(user));
     }
 
     @Transactional
     public LibraryBookResponse updateProgress(String email, Long bookId, UpdatePersonalProgressRequest request) {
-        PersonalLibraryBook libraryBook = getLibraryBook(getUser(email), bookId);
+        User user = getUser(email);
+        PersonalLibraryBook libraryBook = getLibraryBook(user, bookId);
         int totalPages = libraryBook.getBook().getPages();
-        if (request.currentPage() > totalPages) {
+        // 전체 쪽수를 모르는 책(0)은 상한 검사를 하지 않는다
+        if (totalPages > 0 && request.currentPage() > totalPages) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 페이지는 책의 전체 페이지를 넘을 수 없습니다.");
         }
-        if (request.currentPage() < libraryBook.getCurrentPage()) {
+        int before = libraryBook.getCurrentPage();
+        if (request.currentPage() < before) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "읽은 페이지는 이전 진행도보다 낮게 설정할 수 없습니다.");
         }
+        int gainedXp = 0;
         if (libraryBook.updateProgress(request.currentPage(), totalPages)) {
             personalReadingLogRepository.save(new PersonalReadingLog(libraryBook, LocalDate.now(KST)));
+            gainedXp = questService.addReadPages(user, request.currentPage() - before);
         }
-        return toResponse(libraryBook);
+        return toResponse(libraryBook, gainedXp);
     }
 
     private PersonalLibraryBook getLibraryBook(User user, Long bookId) {
@@ -116,13 +127,14 @@ public class LibraryService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 
-    private LibraryBookResponse toResponse(PersonalLibraryBook libraryBook) {
+    private LibraryBookResponse toResponse(PersonalLibraryBook libraryBook, int gainedXp) {
         Book book = libraryBook.getBook();
         int totalPages = book.getPages();
         int percent = totalPages == 0 ? 0 : Math.min(100, libraryBook.getCurrentPage() * 100 / totalPages);
         return new LibraryBookResponse(
                 libraryBook.getPersonalLibraryBookId(), book.getBookId(), book.getBookTitle(), book.getCoverUrl(), book.getAuthor(),
-                libraryBook.getCurrentPage(), totalPages, percent, libraryBook.getCompletedAt() != null, libraryBook.getCompletedAt()
+                libraryBook.getCurrentPage(), totalPages, percent, libraryBook.getCompletedAt() != null, libraryBook.getCompletedAt(),
+                libraryBook.getCreatedAt(), gainedXp
         );
     }
 }
