@@ -1,5 +1,6 @@
 package dongsim.dadok.review.domain.entity;
 
+import dongsim.dadok.auth.domain.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -23,6 +24,11 @@ public class Review {
     @Column(name = "lib_book_id", nullable = false)
     private Long libBookId;
 
+    // 작성자 (users.id). 이 컬럼이 생기기 전에 쓴 감상문은 비어 있을 수 있어 nullable 로 둔다.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User writer;
+
     @Column(name = "review_date", nullable = false)
     private LocalDateTime reviewDate;
 
@@ -34,8 +40,9 @@ public class Review {
     private LocalDateTime createDate;
 
     @Builder
-    public Review(Long libBookId, LocalDateTime reviewDate, String review) {
+    public Review(Long libBookId, User writer, LocalDateTime reviewDate, String review) {
         this.libBookId = libBookId;
+        this.writer = writer;
         this.reviewDate = (reviewDate != null) ? reviewDate : LocalDateTime.now();
         this.review = review;
     }
