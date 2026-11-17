@@ -29,10 +29,12 @@ public class ReviewService {
     // 감상문 등록 (모달에서 완료 버튼 클릭 시) - 본인 서재 책에만 쓸 수 있다
     @Transactional
     public Long create(String userId, ReviewCreateRequest request) {
-        requireOwnedLibBook(userId, request.getLibBookId());
+        // 본인 서재 책인지 확인하고, 그 주인(= 로그인한 사용자)을 작성자로 함께 저장한다
+        User writer = requireOwnedLibBook(userId, request.getLibBookId()).getUser();
 
         Review review = Review.builder()
                 .libBookId(request.getLibBookId())
+                .writer(writer)
                 .reviewDate(request.getReviewDate())
                 .review(request.getReview())
                 .build();
