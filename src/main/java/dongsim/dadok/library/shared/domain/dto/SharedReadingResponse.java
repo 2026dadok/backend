@@ -62,6 +62,13 @@ public record SharedReadingResponse(
         return me == null ? 0 : me.progressPercent();
     }
 
+    // 조회한 사람이 읽은 쪽수 (타이머가 이전 쪽수보다 낮은 입력을 막을 때 쓴다)
+    @JsonProperty("read_page")
+    public int read_page() {
+        MemberProgressResponse me = me();
+        return me == null ? 0 : me.currentPage();
+    }
+
     @JsonProperty("partner_percent")
     public int partner_percent() {
         MemberProgressResponse p = partnerMember();

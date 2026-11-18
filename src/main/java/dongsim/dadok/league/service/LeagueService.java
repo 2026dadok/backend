@@ -17,6 +17,10 @@ import dongsim.dadok.time.domain.entity.ReadingLog;
 import dongsim.dadok.book.domain.entity.Book;
 import dongsim.dadok.book.repository.BookRepository;
 import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
+import dongsim.dadok.library.shared.domain.entity.SharedReading;
+import dongsim.dadok.library.shared.domain.entity.SharedReadingMember;
+import dongsim.dadok.library.shared.domain.entity.SharedReadingStatus;
+import dongsim.dadok.library.shared.repository.SharedReadingRepository;
 import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -51,6 +55,7 @@ public class LeagueService {
     private final ProfileImageService profileImageService;
     private final BookRepository bookRepository;
     private final PersonalLibraryBookRepository personalLibraryBookRepository;
+    private final SharedReadingRepository sharedReadingRepository;
 
     private static final int COMPETITOR_BOOKS_MAX = 5;
 
@@ -137,22 +142,43 @@ public class LeagueService {
         return result;
     }
 
-    // 내가 가장 최근에 읽은 책 + 개인 서재 진행률 (없으면 null)
+    // 내가 가장 최근에 읽은 책 + 진행률 (없으면 null)
+    // 개인 서재에 있으면 개인 서재 쪽수, 없고 공동서재에 있으면 공동서재 쪽수와 shared_reading_id 를 준다
     private Object readingBook(User me) {
         return readingLogRepository.findFirstByUserOrderByEndedAtDesc(me)
                 .map(ReadingLog::getBookId)
                 .flatMap(bookRepository::findById)
                 .map(book -> {
                     Map<String, Object> info = bookInfo(book);
-                    personalLibraryBookRepository.findByUserAndBookBookId(me, book.getBookId()).ifPresent(lib -> {
-                        int total = book.getPages();
-                        info.put("read_page", lib.getCurrentPage());
-                        info.put("total_page", total);
-                        info.put("percent", total <= 0 ? 0 : (int) Math.min(100L, lib.getCurrentPage() * 100L / total));
-                    });
+                    int total = book.getPages();
+                    personalLibraryBookRepository.findByUserAndBookBookId(me, book.getBookId()).ifPresentOrElse(
+                            lib -> putProgress(info, lib.getCurrentPage(), total),
+                            () -> findSharedReading(me, book.getBookId()).ifPresent(shared -> {
+                                info.put("shared_reading_id", shared.getSharedReadingId());
+                                int current = shared.getMembers().stream()
+                                        .filter(m -> me.getUserId().equals(m.getUserId()))
+                                        .mapToInt(SharedReadingMember::getCurrentPage)
+                                        .findFirst().orElse(0);
+                                putProgress(info, current, total);
+                            }));
                     return (Object) info;
                 })
                 .orElse(null);
+    }
+
+    private void putProgress(Map<String, Object> info, int current, int total) {
+        info.put("read_page", current);
+        info.put("total_page", total);
+        info.put("percent", total <= 0 ? 0 : (int) Math.min(100L, current * 100L / total));
+    }
+
+    // 이 책으로 함께 읽는 공동서재 (진행 중인 것을 먼저, 그다음 최근 것)
+    private Optional<SharedReading> findSharedReading(User me, Long bookId) {
+        List<SharedReading> list = sharedReadingRepository.findDistinctByMembersUserIdOrderByCreatedAtDesc(me.getUserId()).stream()
+                .filter(s -> s.getBook().getBookId().equals(bookId))
+                .toList();
+        return list.stream().filter(s -> s.getStatus() == SharedReadingStatus.ACTIVE).findFirst()
+                .or(() -> list.stream().findFirst());
     }
 
     private Map<String, Object> bookInfo(Book book) {

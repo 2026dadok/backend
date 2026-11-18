@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -62,5 +63,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("입력값이 올바르지 않습니다.", 400, "VALIDATION_FAILED"));
+    }
+
+    // 서비스에서 상태 코드와 함께 던진 예외: 상태 코드는 그대로, 문구는 message 로 내려준다
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException e) {
+        HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+        String code = status == null ? "ERROR" : status.name();
+        return ResponseEntity.status(e.getStatusCode())
+                .body(new ErrorResponse(e.getReason(), e.getStatusCode().value(), code));
     }
 }
