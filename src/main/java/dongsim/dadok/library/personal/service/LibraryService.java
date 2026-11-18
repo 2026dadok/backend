@@ -10,6 +10,7 @@ import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.auth.domain.repository.UserRepository;
 import dongsim.dadok.book.domain.entity.Book;
 import dongsim.dadok.book.repository.BookRepository;
+import dongsim.dadok.quest.service.QuestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,57 +30,71 @@ public class LibraryService {
     private final PersonalReadingLogRepository personalReadingLogRepository;
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
+    private final QuestService questService;
 
     public LibraryService(
             PersonalLibraryBookRepository personalLibraryBookRepository,
             PersonalReadingLogRepository personalReadingLogRepository,
             UserRepository userRepository,
-            BookRepository bookRepository
+            BookRepository bookRepository,
+            QuestService questService
     ) {
         this.personalLibraryBookRepository = personalLibraryBookRepository;
         this.personalReadingLogRepository = personalReadingLogRepository;
         this.userRepository = userRepository;
         this.bookRepository = bookRepository;
+        this.questService = questService;
     }
 
     @Transactional
-    public LibraryBookResponse addBook(String email, AddLibraryBookRequest request) {
-        User user = getUser(email);
+    public LibraryBookResponse addBook(String userId, AddLibraryBookRequest request) {
+        User user = getUser(userId);
         Book book = resolveBook(request);
         if (personalLibraryBookRepository.existsByUserAndBookBookId(user, book.getBookId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 개인 서재에 추가한 책입니다.");
         }
-        return toResponse(personalLibraryBookRepository.save(new PersonalLibraryBook(user, book)));
+        PersonalLibraryBook saved = personalLibraryBookRepository.save(new PersonalLibraryBook(user, book));
+        int gainedXp = questService.onBookRegistered(user);
+        return toResponse(saved, gainedXp);
     }
 
     @Transactional
-    public void deleteBook(String email, Long bookId) {
-        PersonalLibraryBook libraryBook = getLibraryBook(getUser(email), bookId);
+    public void deleteBook(String userId, Long bookId) {
+        PersonalLibraryBook libraryBook = getLibraryBook(getUser(userId), bookId);
         personalLibraryBookRepository.delete(libraryBook);
     }
 
-    public LibraryPageResponse getMyLibrary(String email) {
-        User user = getUser(email);
+    public LibraryPageResponse getMyLibrary(String userId) {
+        User user = getUser(userId);
         List<LibraryBookResponse> books = personalLibraryBookRepository.findByUserOrderByCreatedAtDesc(user).stream()
-                .map(this::toResponse)
+                .map(b -> toResponse(b, 0))
                 .toList();
         return new LibraryPageResponse(books, personalReadingLogRepository.findDistinctReadDatesByUser(user));
     }
 
     @Transactional
-    public LibraryBookResponse updateProgress(String email, Long bookId, UpdatePersonalProgressRequest request) {
-        PersonalLibraryBook libraryBook = getLibraryBook(getUser(email), bookId);
+    public LibraryBookResponse updateProgress(String userId, Long bookId, UpdatePersonalProgressRequest request) {
+        User user = getUser(userId);
+        questService.lockUser(user); // 같은 사용자의 쪽수 저장을 한 줄로 세움 (진행도 이중 집계 방지)
+        PersonalLibraryBook libraryBook = getLibraryBook(user, bookId);
         int totalPages = libraryBook.getBook().getPages();
-        if (request.currentPage() > totalPages) {
+        // 전체 쪽수를 모르는 책(0)은 상한 검사를 하지 않는다
+        if (totalPages > 0 && request.currentPage() > totalPages) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 페이지는 책의 전체 페이지를 넘을 수 없습니다.");
         }
-        if (request.currentPage() < libraryBook.getCurrentPage()) {
+        int before = libraryBook.getCurrentPage();
+        if (request.currentPage() < before) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "읽은 페이지는 이전 진행도보다 낮게 설정할 수 없습니다.");
         }
+        int gainedXp = 0;
         if (libraryBook.updateProgress(request.currentPage(), totalPages)) {
             personalReadingLogRepository.save(new PersonalReadingLog(libraryBook, LocalDate.now(KST)));
+            // 전체 쪽수를 모르는 책은 쪽수를 확인할 수 없어 주간 쪽수 퀘스트에 넣지 않는다
+            if (totalPages > 0) {
+                gainedXp = questService.addReadPages(user, request.currentPage() - before);
+            }
         }
-        return toResponse(libraryBook);
+        return toResponse(libraryBook, gainedXp);
     }
 
     private PersonalLibraryBook getLibraryBook(User user, Long bookId) {
@@ -108,21 +123,22 @@ public class LibraryService {
                 .orElseGet(() -> bookRepository.save(new Book(title, request.coverUrl(), null, author, null, isbn, pages, null)));
     }
 
-    private User getUser(String email) {
-        if (email == null || email.isBlank()) {
+    private User getUser(String userId) {
+        if (userId == null || userId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
         }
-        return userRepository.findByUserId(email)
+        return userRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 
-    private LibraryBookResponse toResponse(PersonalLibraryBook libraryBook) {
+    private LibraryBookResponse toResponse(PersonalLibraryBook libraryBook, int gainedXp) {
         Book book = libraryBook.getBook();
         int totalPages = book.getPages();
-        int percent = totalPages == 0 ? 0 : Math.min(100, libraryBook.getCurrentPage() * 100 / totalPages);
+        int percent = totalPages <= 0 ? 0 : (int) Math.min(100L, libraryBook.getCurrentPage() * 100L / totalPages);
         return new LibraryBookResponse(
                 libraryBook.getPersonalLibraryBookId(), book.getBookId(), book.getBookTitle(), book.getCoverUrl(), book.getAuthor(),
-                libraryBook.getCurrentPage(), totalPages, percent, libraryBook.getCompletedAt() != null, libraryBook.getCompletedAt()
+                libraryBook.getCurrentPage(), totalPages, percent, libraryBook.getCompletedAt() != null, libraryBook.getCompletedAt(),
+                libraryBook.getCreatedAt(), gainedXp
         );
     }
 }

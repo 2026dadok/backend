@@ -15,8 +15,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 
@@ -38,8 +40,10 @@ class AuthServiceTest {
         // given
         SignUpRequest request = new SignUpRequest("testuser", "test@test.com", "pw123!", "이름", LocalDate.now(), LocalTime.ofSecondOfDay(1800));
         when(userRepository.existsByUserId("testuser")).thenReturn(false);
+        EmailVerification verification = mock(EmailVerification.class);
+        when(verification.getExpiresAt()).thenReturn(LocalDateTime.now().plusMinutes(5));
         when(verificationRepository.findVerifiedLatest("test@test.com", Verification.SIGNUP))
-                .thenReturn(Optional.of(mock(EmailVerification.class)));
+                .thenReturn(Optional.of(verification));
         when(passwordEncoder.encode("pw123!")).thenReturn("encodedPassword");
 
         // when
@@ -73,7 +77,7 @@ class AuthServiceTest {
 
         // then
         assertThatThrownBy(() -> authService.signUp(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 사용 중인 아이디입니다.");
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("이미 사용 중인 아이디입니다.");
     }
 }

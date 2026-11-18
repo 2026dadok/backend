@@ -36,6 +36,27 @@ public class UserQuest {
 
     private LocalDateTime completedAt;  // 완료 시각 (미완료면 null)
 
+    // 진행 중 기록 만들기 (주간 페이지 퀘스트처럼 누적되는 퀘스트)
+    public static UserQuest inProgress(User user, Quest quest, LocalDate periodStart) {
+        UserQuest uq = new UserQuest();
+        uq.user = user;
+        uq.quest = quest;
+        uq.periodStart = periodStart;
+        uq.progress = 0;
+        return uq;
+    }
+
+    // 진행값 누적 (목표 이상이면 그 값에서 멈춤)
+    public void addProgress(int amount) {
+        this.progress = Math.min(quest.getTargetValue(), this.progress + amount);
+    }
+
+    public void markCompleted() {
+        if (this.completedAt == null) {
+            this.completedAt = LocalDateTime.now();
+        }
+    }
+
     // 바로 완료 처리된 기록 만들기 (출석처럼 한 번에 끝나는 퀘스트)
     public static UserQuest completed(User user, Quest quest, LocalDate periodStart) {
         UserQuest uq = new UserQuest();

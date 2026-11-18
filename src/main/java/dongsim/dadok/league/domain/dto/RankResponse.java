@@ -11,6 +11,12 @@ public record RankResponse(
         @JsonProperty("total_seconds") long totalSeconds,
         @JsonProperty("is_me") boolean isMe
 ) {
+    // 이번 주 독서 시간 (초) - 프론트 키
+    @JsonProperty("reading_time")
+    public long readingTime() {
+        return totalSeconds;
+    }
+
     // 이번 주 독서 시간 (분)
     @JsonProperty("minutes")
     public long minutes() {

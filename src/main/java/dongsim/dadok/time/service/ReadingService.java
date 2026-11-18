@@ -1,6 +1,7 @@
 package dongsim.dadok.time.service;
 
 import dongsim.dadok.auth.domain.entity.User;
+import dongsim.dadok.book.repository.BookRepository;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.dto.ReadTimeRequest;
 import dongsim.dadok.time.domain.dto.ReadTimeResponse;
@@ -30,10 +31,14 @@ public class ReadingService {
     private final ReadingLogRepository readingLogRepository;
     private final UserStatRepository userStatRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final BookRepository bookRepository;
 
     // 독서 시간 저장 (POST /times)
     public ReadTimeResponse saveReadTime(String userId, ReadTimeRequest request) {
         User user = findUser(userId);
+        if (!bookRepository.existsById(request.bookId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다.");
+        }
 
         LocalDateTime now = LocalDateTime.now(KST);
         LocalDate today = now.toLocalDate();

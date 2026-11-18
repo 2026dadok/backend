@@ -13,7 +13,6 @@ import dongsim.dadok.quest.domain.entity.UserStat;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import lombok.RequiredArgsConstructor;
 import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
-import org.springframework.context.event.EventListener;
 import java.time.LocalTime;
 import java.time.LocalDate;
 
@@ -28,11 +27,18 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.annotation.Propagation;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AchievementService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AchievementService.class);
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
@@ -43,10 +49,16 @@ public class AchievementService {
     // 숫자 조건 업적 검사: value가 목표값 이상인 업적을 모두 달성 처리
     // 예) check(user, FINISH_COUNT, 10) → 완독의 맛(1), 똑똑이(10) 달성
     // 반환값: 새로 달성한 칭호명 목록
-    @EventListener
+    // 독서 기록이 커밋된 뒤 별도 트랜잭션에서 처리 (여기서 실패해도 독서 기록은 남는다)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleReadingCompleted(ReadingCompletedEvent event) {
-        checkReadingAchievements(event.getUser(), event.isFirstRead(), event.isReadBefore(),
-                event.getStartedAt(), event.getEndedAt(), event.getToday());
+        try {
+            checkReadingAchievements(event.getUser(), event.isFirstRead(), event.isReadBefore(),
+                    event.getStartedAt(), event.getEndedAt(), event.getToday());
+        } catch (RuntimeException e) {
+            LOG.warn("독서 업적 처리 실패 userId={}", event.getUser().getUserId(), e);
+        }
     }
 
     private void checkReadingAchievements(User user, boolean firstRead, boolean readBefore,

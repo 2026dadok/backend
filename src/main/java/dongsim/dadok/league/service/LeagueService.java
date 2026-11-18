@@ -13,6 +13,11 @@ import dongsim.dadok.quest.domain.entity.Tier;
 import dongsim.dadok.quest.domain.entity.UserStat;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.repository.ReadingLogRepository;
+import dongsim.dadok.time.domain.entity.ReadingLog;
+import dongsim.dadok.book.domain.entity.Book;
+import dongsim.dadok.book.repository.BookRepository;
+import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
+import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,11 +29,18 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.annotation.Propagation;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class LeagueService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(LeagueService.class);
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
@@ -37,6 +49,10 @@ public class LeagueService {
     private final UserStatRepository userStatRepository;
     private final AchievementService achievementService;
     private final ProfileImageService profileImageService;
+    private final BookRepository bookRepository;
+    private final PersonalLibraryBookRepository personalLibraryBookRepository;
+
+    private static final int COMPETITOR_BOOKS_MAX = 5;
 
     // 주간 경쟁 페이지 (GET /main/week_competition)
     public WeekCompetitionResponse getWeekCompetition(String userId) {
@@ -60,10 +76,10 @@ public class LeagueService {
 
         return new WeekCompetitionResponse(
                 myEntry.getTier().getDisplayName(),
-                List.of(),      // TODO: 경쟁자들이 읽는 책 (책 정보 연결)
+                competitorBooks(myEntry.getTier(), monday, me),
                 myRank,
                 ranking,
-                null,           // TODO: 내가 읽고 있는 책 + 진행률 (책 정보 연결)
+                readingBook(me),
                 lastWeek
         );
     }
@@ -72,6 +88,18 @@ public class LeagueService {
     public WeeklyEntry getOrCreateEntry(User user, LocalDate monday) {
         return weeklyEntryRepository.findByUserAndWeekStart(user, monday)
                 .orElseGet(() -> weeklyEntryRepository.save(new WeeklyEntry(user, monday, Tier.of(getXp(user)))));
+    }
+
+    // 독서 시간 저장 이벤트 → 리그 참가 처리
+    // 독서 기록이 커밋된 뒤 별도 트랜잭션에서 처리 (여기서 실패해도 독서 기록은 남는다)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handleReadingCompleted(ReadingCompletedEvent event) {
+        try {
+            onReadingSaved(event.getUser());
+        } catch (RuntimeException e) {
+            LOG.warn("주간 리그 참가 처리 실패 userId={}", event.getUser().getUserId(), e);
+        }
     }
 
     // 독서 시간이 저장된 뒤 호출: 이번 주 리그 참가 + 현재 순위로 업적 검사
@@ -84,6 +112,58 @@ public class LeagueService {
                 .filter(Objects::nonNull)
                 .findFirst()
                 .ifPresent(rank -> achievementService.checkRank(user, AchievementCondition.WEEKLY_RANK_ENTER, rank));
+    }
+
+    // 같은 리그 경쟁자들이 이번 주에 읽은 책 (최근 순, 중복 제외, 최대 5권)
+    private List<Object> competitorBooks(Tier tier, LocalDate monday, User me) {
+        List<User> others = weeklyEntryRepository.findAllByWeekStartAndTier(monday, tier).stream()
+                .map(WeeklyEntry::getUser)
+                .filter(u -> !u.getId().equals(me.getId()))
+                .toList();
+        if (others.isEmpty()) return List.of();
+
+        LinkedHashSet<Long> bookIds = new LinkedHashSet<>();
+        for (ReadingLog log : readingLogRepository.findByUserInAndReadDateGreaterThanEqualOrderByEndedAtDesc(others, monday)) {
+            if (log.getBookId() != null) bookIds.add(log.getBookId());
+            if (bookIds.size() >= COMPETITOR_BOOKS_MAX) break;
+        }
+        List<Object> result = new ArrayList<>();
+        for (Book book : bookRepository.findAllById(bookIds)) {
+            result.add(bookInfo(book));
+        }
+        // findAllById 는 순서를 보장하지 않으므로 최근 순으로 다시 정렬
+        List<Long> order = new ArrayList<>(bookIds);
+        result.sort(Comparator.comparingInt(b -> order.indexOf((Long) ((Map<?, ?>) b).get("book_id"))));
+        return result;
+    }
+
+    // 내가 가장 최근에 읽은 책 + 개인 서재 진행률 (없으면 null)
+    private Object readingBook(User me) {
+        return readingLogRepository.findFirstByUserOrderByEndedAtDesc(me)
+                .map(ReadingLog::getBookId)
+                .flatMap(bookRepository::findById)
+                .map(book -> {
+                    Map<String, Object> info = bookInfo(book);
+                    personalLibraryBookRepository.findByUserAndBookBookId(me, book.getBookId()).ifPresent(lib -> {
+                        int total = book.getPages();
+                        info.put("read_page", lib.getCurrentPage());
+                        info.put("total_page", total);
+                        info.put("percent", total <= 0 ? 0 : (int) Math.min(100L, lib.getCurrentPage() * 100L / total));
+                    });
+                    return (Object) info;
+                })
+                .orElse(null);
+    }
+
+    private Map<String, Object> bookInfo(Book book) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("book_id", book.getBookId());
+        info.put("title", book.getBookTitle());
+        info.put("author", book.getAuthor());
+        info.put("cover_url", book.getCoverUrl());
+        info.put("isbn", book.getIsbn13());
+        info.put("total_page", book.getPages());
+        return info;
     }
 
     // 주간 경쟁 5위권 진입 횟수 (마이페이지)

@@ -32,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         // 2. 토큰 유효성 검증
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token) && jwtTokenProvider.isAccessToken(token)) {
             String userId = jwtTokenProvider.getUserIdFromToken(token);
 
             // 3. SecurityContext에 저장할 Authentication 객체 생성

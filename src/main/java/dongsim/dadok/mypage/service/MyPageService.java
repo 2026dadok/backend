@@ -2,6 +2,7 @@ package dongsim.dadok.mypage.service;
 
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.league.service.LeagueService;
+import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
 import dongsim.dadok.profile.service.ProfileImageService;
 import dongsim.dadok.achievement.domain.dto.MessageResponse;
 import dongsim.dadok.auth.domain.repository.RefreshTokenRepository;
@@ -35,6 +36,7 @@ public class MyPageService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AchievementService achievementService;
+    private final PersonalLibraryBookRepository personalLibraryBookRepository;
 
     @Transactional
     public MyPageResponse getMyPage(String userId) {
@@ -42,6 +44,7 @@ public class MyPageService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
         long allReadingMinutes = readingLogRepository.sumSecondsByUser(user) / 60;
+        int allReadingPages = (int) personalLibraryBookRepository.sumCurrentPageByUser(user);
         int sequenceDay = maxStreak(readingLogRepository.findReadDatesByUser(user));
         List<MyPageResponse.Achievement> achievements = achievementService.getAchievements(userId).stream()
                 .map(a -> new MyPageResponse.Achievement(
@@ -54,7 +57,7 @@ public class MyPageService {
                 achievementService.getEquippedTitle(user),
                 allReadingMinutes,
                 sequenceDay,
-                0,      // TODO: 쪽수 기록 연결
+                allReadingPages,
                 leagueService.countTop5(user),
                 profileImageService.profileUrl(user),
                 profileImageService.bannerUrl(user),
@@ -91,6 +94,7 @@ public class MyPageService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다.");
             }
             password = passwordEncoder.encode(request.newPassword());
+            refreshTokenRepository.deleteByUserId(user.getUserId()); // 비밀번호를 바꾸면 다른 기기의 로그인도 끊는다
         }
 
         userInfoRepository.updateInfo(

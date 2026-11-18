@@ -36,3 +36,5 @@ out/
 ### VS Code ###
 .vscode/
 .env
+# 업로드된 이미지 (로컬 저장소)
+uploads/

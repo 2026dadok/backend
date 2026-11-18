@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -35,7 +37,7 @@ public class ProfileImageService {
 
         String newUrl = imageStorage.save(file);
         setUrl(stat, type, newUrl);
-        imageStorage.delete(oldUrl);
+        deleteAfterCommit(oldUrl);
 
         return new ImageResponse("이미지가 변경되었습니다.", newUrl);
     }
@@ -45,7 +47,7 @@ public class ProfileImageService {
         ImageType type = parseType(typeValue);
         UserStat stat = getOrCreateStat(findUser(userId));
 
-        imageStorage.delete(currentUrl(stat, type));
+        deleteAfterCommit(currentUrl(stat, type));
         setUrl(stat, type, null);
 
         return new ImageResponse("기본 이미지로 변경되었습니다.", type.getDefaultUrl());
@@ -101,6 +103,21 @@ public class ProfileImageService {
     private UserStat getOrCreateStat(User user) {
         return userStatRepository.findByUser(user)
                 .orElseGet(() -> userStatRepository.save(new UserStat(user)));
+    }
+
+    // DB 반영이 끝난 뒤에 이전 파일 삭제 (롤백되면 파일은 그대로 둔다)
+    private void deleteAfterCommit(String url) {
+        if (url == null) return;
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    imageStorage.delete(url);
+                }
+            });
+        } else {
+            imageStorage.delete(url);
+        }
     }
 
     private User findUser(String userId) {

@@ -9,6 +9,7 @@ import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.auth.domain.repository.UserRepository;
 import dongsim.dadok.book.domain.entity.Book;
 import dongsim.dadok.book.repository.BookRepository;
+import dongsim.dadok.quest.service.QuestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,17 +28,20 @@ public class SharedReadingService {
     private final DailyReflectionRepository dailyReflectionRepository;
     private final BookRepository bookRepository;
     private final UserRepository userRepository;
+    private final QuestService questService;
 
     public SharedReadingService(
             SharedReadingRepository sharedReadingRepository,
             DailyReflectionRepository dailyReflectionRepository,
             BookRepository bookRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            QuestService questService
     ) {
         this.sharedReadingRepository = sharedReadingRepository;
         this.dailyReflectionRepository = dailyReflectionRepository;
         this.bookRepository = bookRepository;
         this.userRepository = userRepository;
+        this.questService = questService;
     }
 
     @Transactional
@@ -86,13 +90,16 @@ public class SharedReadingService {
 
     @Transactional
     public SharedReadingResponse updateProgress(String userId, Long sharedReadingId, UpdateProgressRequest request) {
+        // 같은 사용자의 쪽수 저장을 한 줄로 세움 (진행도 이중 집계 방지)
+        userRepository.findByUserId(userId).ifPresent(questService::lockUser);
         SharedReading sharedReading = getParticipantReading(userId, sharedReadingId);
         if (sharedReading.getStatus() == SharedReadingStatus.COMPLETED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "종료된 공동 읽기입니다.");
         }
 
         int totalPages = sharedReading.getBook().getPages();
-        if (request.currentPage() > totalPages) {
+        // 전체 쪽수를 모르는 책(0)은 상한 검사를 하지 않는다
+        if (totalPages > 0 && request.currentPage() > totalPages) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 페이지는 책의 전체 페이지를 넘을 수 없습니다.");
         }
 
@@ -104,7 +111,13 @@ public class SharedReadingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "읽은 페이지는 이전 진행도보다 낮게 설정할 수 없습니다.");
         }
 
+        int before = member.getCurrentPage();
         boolean justCompleted = member.updateProgress(request.currentPage(), totalPages);
+        // 전체 쪽수를 모르는 책은 쪽수를 확인할 수 없어 주간 쪽수 퀘스트에 넣지 않는다
+        if (totalPages > 0 && request.currentPage() > before) {
+            userRepository.findByUserId(userId)
+                    .ifPresent(user -> questService.addReadPages(user, request.currentPage() - before));
+        }
         if (justCompleted) {
             sharedReading.decideWinner(userId);
         }
@@ -167,7 +180,7 @@ public class SharedReadingService {
         List<SharedReadingResponse.MemberProgressResponse> members = sharedReading.getMembers().stream()
                 .map(member -> new SharedReadingResponse.MemberProgressResponse(
                         member.getUserId(), getUserName(member.getUserId()), member.getCurrentPage(), totalPages,
-                        totalPages == 0 ? 0 : Math.min(100, member.getCurrentPage() * 100 / totalPages), member.getCompletedAt()
+                        totalPages <= 0 ? 0 : (int) Math.min(100L, member.getCurrentPage() * 100L / totalPages), member.getCompletedAt()
                 ))
                 .toList();
         return new SharedReadingResponse(
