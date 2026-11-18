@@ -42,6 +42,7 @@ public class FeelingController {
         PersonalLibraryBook libraryBook = findLibraryBook(userId, request.bookId());
         Review saved = reviewRepository.save(Review.builder()
                 .libBookId(libraryBook.getPersonalLibraryBookId())
+                .writer(libraryBook.getUser())
                 .review(request.content().trim())
                 .build());
 
