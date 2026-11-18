@@ -94,6 +94,7 @@ public class MyPageService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다.");
             }
             password = passwordEncoder.encode(request.newPassword());
+            refreshTokenRepository.deleteByUserId(user.getUserId()); // 비밀번호를 바꾸면 다른 기기의 로그인도 끊는다
         }
 
         userInfoRepository.updateInfo(

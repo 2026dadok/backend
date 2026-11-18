@@ -90,6 +90,8 @@ public class SharedReadingService {
 
     @Transactional
     public SharedReadingResponse updateProgress(String userId, Long sharedReadingId, UpdateProgressRequest request) {
+        // 같은 사용자의 쪽수 저장을 한 줄로 세움 (진행도 이중 집계 방지)
+        userRepository.findByUserId(userId).ifPresent(questService::lockUser);
         SharedReading sharedReading = getParticipantReading(userId, sharedReadingId);
         if (sharedReading.getStatus() == SharedReadingStatus.COMPLETED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "종료된 공동 읽기입니다.");
@@ -111,7 +113,8 @@ public class SharedReadingService {
 
         int before = member.getCurrentPage();
         boolean justCompleted = member.updateProgress(request.currentPage(), totalPages);
-        if (request.currentPage() > before) {
+        // 전체 쪽수를 모르는 책은 쪽수를 확인할 수 없어 주간 쪽수 퀘스트에 넣지 않는다
+        if (totalPages > 0 && request.currentPage() > before) {
             userRepository.findByUserId(userId)
                     .ifPresent(user -> questService.addReadPages(user, request.currentPage() - before));
         }
@@ -177,7 +180,7 @@ public class SharedReadingService {
         List<SharedReadingResponse.MemberProgressResponse> members = sharedReading.getMembers().stream()
                 .map(member -> new SharedReadingResponse.MemberProgressResponse(
                         member.getUserId(), getUserName(member.getUserId()), member.getCurrentPage(), totalPages,
-                        totalPages == 0 ? 0 : Math.min(100, member.getCurrentPage() * 100 / totalPages), member.getCompletedAt()
+                        totalPages <= 0 ? 0 : (int) Math.min(100L, member.getCurrentPage() * 100L / totalPages), member.getCompletedAt()
                 ))
                 .toList();
         return new SharedReadingResponse(

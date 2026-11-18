@@ -53,6 +53,13 @@ public class AuthService {
             throw new UserNotFoundException("존재하지 않는 이메일입니다.");
         }
 
+        // 재발송은 1분에 한 번 (유효시간 5분이므로 만료까지 4분 넘게 남았으면 1분 안에 보낸 것)
+        verificationRepository.findTopByEmailAndTypeOrderByExpiresAtDesc(request.email(), request.purpose())
+                .filter(v -> v.getExpiresAt().isAfter(LocalDateTime.now().plusMinutes(4)))
+                .ifPresent(v -> {
+                    throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "인증번호는 1분 뒤에 다시 받을 수 있습니다.");
+                });
+
         // 기존 인증 기록 삭제 (무결성 보장)
         verificationRepository.deleteByEmailAndType(request.email(), request.purpose());
 
@@ -89,7 +96,7 @@ public class AuthService {
     // 가장 최근 인증번호와 비교 (만료, 시도 횟수 초과, 불일치 검사)
     private EmailVerification checkCode(String email, String code, Verification type) {
         EmailVerification verification = verificationRepository
-                .findTopByEmailAndTypeOrderByExpiresAtDesc(email, type)
+                .findFirstByEmailAndTypeOrderByExpiresAtDesc(email, type)
                 .orElseThrow(() -> new InvalidVerificationException("인증번호가 일치하지 않거나 존재하지 않습니다."));
 
         if (verification.isLocked()) {
@@ -119,6 +126,7 @@ public class AuthService {
         EmailVerification verification = verificationRepository
                 .findVerifiedLatest(request.email(), Verification.SIGNUP)
                 .orElseThrow(() -> new InvalidVerificationException("이메일 인증이 필요합니다."));
+        checkVerifiedRecent(verification);
 
         User user = User.builder()
                 .userId(request.userId())
@@ -131,6 +139,7 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        verificationRepository.delete(verification); // 인증 기록은 한 번만 쓴다
     }
 
     // 4. 로그인
@@ -156,7 +165,8 @@ public class AuthService {
     }
 
     // 토큰 재발급: 저장된 refresh 토큰과 같을 때만 새 access/refresh 토큰 발급 (refresh 토큰도 교체)
-    @Transactional
+    // 예전 토큰 재사용으로 저장된 토큰을 지운 뒤 예외를 던지므로 롤백하지 않는다
+    @Transactional(noRollbackFor = AuthenticationFailedException.class)
     public TokenResponse refresh(String refreshToken) {
         if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)
                 || !jwtTokenProvider.isRefreshToken(refreshToken)) {
@@ -164,8 +174,12 @@ public class AuthService {
         }
         String userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
         RefreshToken saved = refreshTokenRepository.findByUserId(userId)
-                .filter(t -> refreshToken.equals(t.getToken()))
                 .orElseThrow(() -> new AuthenticationFailedException("다시 로그인해주세요."));
+        if (!refreshToken.equals(saved.getToken())) {
+            // 이미 교체된 예전 토큰이 다시 왔다 = 탈취 가능성 → 저장된 토큰도 지워서 모두 다시 로그인하게 한다
+            refreshTokenRepository.delete(saved);
+            throw new AuthenticationFailedException("다시 로그인해주세요.");
+        }
 
         String newAccess = jwtTokenProvider.createAccessToken(userId);
         String newRefresh = jwtTokenProvider.createRefreshToken(userId);
@@ -193,10 +207,12 @@ public class AuthService {
         EmailVerification verification = verificationRepository
                 .findVerifiedLatest(request.email(), Verification.FIND_ID)
                 .orElseThrow(() -> new InvalidVerificationException("인증되지 않았거나 인증 내역이 존재하지 않습니다."));
+        checkVerifiedRecent(verification);
 
         User user = userRepository.findByNameAndBirthDateAndEmail(
                         request.name(), request.birthDate(), request.email())
                 .orElseThrow(() -> new UserNotFoundException("일치하는 회원 정보를 찾을 수 없습니다."));
+        verificationRepository.delete(verification); // 인증 기록은 한 번만 쓴다
 
         return user.getUserId();
     }
@@ -214,6 +230,14 @@ public class AuthService {
 
         user.updatePassword(passwordEncoder.encode(request.newPassword()));
         verificationRepository.delete(verification);
+        refreshTokenRepository.deleteByUserId(user.getUserId()); // 다른 기기의 로그인도 끊는다
+    }
+
+    // 인증 완료 후 30분 안에만 가입·아이디 찾기에 쓸 수 있다 (인증번호 유효 5분 + 25분)
+    private void checkVerifiedRecent(EmailVerification verification) {
+        if (verification.getExpiresAt().plusMinutes(25).isBefore(LocalDateTime.now())) {
+            throw new InvalidVerificationException("인증 시간이 지났습니다. 이메일 인증을 다시 해주세요.");
+        }
     }
 
     // 8. 이메일 중복 확인

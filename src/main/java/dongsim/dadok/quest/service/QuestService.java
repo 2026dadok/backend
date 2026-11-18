@@ -12,7 +12,6 @@ import dongsim.dadok.quest.domain.repository.QuestRepository;
 import dongsim.dadok.quest.domain.repository.UserQuestRepository;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
-import org.springframework.context.event.EventListener;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,20 +25,33 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.annotation.Propagation;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class QuestService {
 
+    private static final Logger LOG = LoggerFactory.getLogger(QuestService.class);
+
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final QuestRepository questRepository;
     private final UserQuestRepository userQuestRepository;
     private final UserStatRepository userStatRepository;
-    @EventListener
+    // 독서 기록이 커밋된 뒤 별도 트랜잭션에서 처리 (여기서 실패해도 독서 기록은 남는다)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleReadingCompleted(ReadingCompletedEvent event) {
-        checkReadTimeQuests(event.getUser(), event.getTodaySeconds(), event.getToday());
+        try {
+            checkReadTimeQuests(event.getUser(), event.getTodaySeconds(), event.getToday());
+        } catch (RuntimeException e) {
+            LOG.warn("독서 시간 퀘스트 처리 실패 userId={}", event.getUser().getUserId(), e);
+        }
     }
 
 
@@ -114,6 +126,8 @@ public class QuestService {
     // 출석뿐 아니라 독서 시간, 책 등록 등 다른 기능에서도 이걸 부름
     // 반환값: 이번에 받은 XP 합계
     public int complete(User user, Quest quest, LocalDate periodStart) {
+        lockUser(user);
+        if (isCompleted(user, quest, periodStart)) return 0; // 동시 요청으로 이미 완료된 경우
         userQuestRepository.save(UserQuest.completed(user, quest, periodStart));
         int gainedXp = giveXp(user, quest.getRewardXp());
 
@@ -232,17 +246,18 @@ public class QuestService {
         return userQuestRepository.existsByUserAndQuestAndPeriodStartAndCompletedAtIsNotNull(user, quest, periodStart);
     }
 
-    private void lockUser(User user) {
-        if (userStatRepository.findByUserForUpdate(user).isEmpty()) {
+    // 사용자별 잠금: 같은 사용자의 XP·퀘스트 변경을 한 줄로 세운다 (트랜잭션이 끝날 때까지 유지)
+    // 읽기 격리수준은 READ COMMITTED (application.yaml) 라서 잠금 뒤에는 다른 요청이 커밋한 값이 보인다
+    public UserStat lockUser(User user) {
+        return userStatRepository.findByUserForUpdate(user).orElseGet(() -> {
             userStatRepository.saveAndFlush(new UserStat(user));
-            userStatRepository.findByUserForUpdate(user);
-        }
+            return userStatRepository.findByUserForUpdate(user).orElseThrow();
+        });
     }
 
     // XP 지급: 기록(UserStat)이 없으면 새로 만들고 더함
     private int giveXp(User user, int amount) {
-        UserStat stat = userStatRepository.findByUser(user)
-                .orElseGet(() -> userStatRepository.save(new UserStat(user)));
+        UserStat stat = lockUser(user);
         stat.addXp(amount);
         achievementService.checkTier(user, stat.getXp());
         return amount;

@@ -23,4 +23,8 @@ public interface EmailVerificationRepository extends JpaRepository<EmailVerifica
     void deleteByEmailAndType(String email, Verification type);
     Optional<EmailVerification> findTopByEmailAndTypeOrderByExpiresAtDesc(String email, Verification type);
     Optional<EmailVerification> findByEmailAndCodeAndType(String email, String code, Verification type);
+
+    // 인증번호 비교용 잠금 조회 (동시에 대입해도 실패 횟수가 덮어써지지 않게)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<EmailVerification> findFirstByEmailAndTypeOrderByExpiresAtDesc(String email, Verification type);
 }

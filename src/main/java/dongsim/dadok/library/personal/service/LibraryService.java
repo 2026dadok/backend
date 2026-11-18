@@ -75,6 +75,7 @@ public class LibraryService {
     @Transactional
     public LibraryBookResponse updateProgress(String userId, Long bookId, UpdatePersonalProgressRequest request) {
         User user = getUser(userId);
+        questService.lockUser(user); // 같은 사용자의 쪽수 저장을 한 줄로 세움 (진행도 이중 집계 방지)
         PersonalLibraryBook libraryBook = getLibraryBook(user, bookId);
         int totalPages = libraryBook.getBook().getPages();
         // 전체 쪽수를 모르는 책(0)은 상한 검사를 하지 않는다
@@ -88,7 +89,10 @@ public class LibraryService {
         int gainedXp = 0;
         if (libraryBook.updateProgress(request.currentPage(), totalPages)) {
             personalReadingLogRepository.save(new PersonalReadingLog(libraryBook, LocalDate.now(KST)));
-            gainedXp = questService.addReadPages(user, request.currentPage() - before);
+            // 전체 쪽수를 모르는 책은 쪽수를 확인할 수 없어 주간 쪽수 퀘스트에 넣지 않는다
+            if (totalPages > 0) {
+                gainedXp = questService.addReadPages(user, request.currentPage() - before);
+            }
         }
         return toResponse(libraryBook, gainedXp);
     }
@@ -130,7 +134,7 @@ public class LibraryService {
     private LibraryBookResponse toResponse(PersonalLibraryBook libraryBook, int gainedXp) {
         Book book = libraryBook.getBook();
         int totalPages = book.getPages();
-        int percent = totalPages == 0 ? 0 : Math.min(100, libraryBook.getCurrentPage() * 100 / totalPages);
+        int percent = totalPages <= 0 ? 0 : (int) Math.min(100L, libraryBook.getCurrentPage() * 100L / totalPages);
         return new LibraryBookResponse(
                 libraryBook.getPersonalLibraryBookId(), book.getBookId(), book.getBookTitle(), book.getCoverUrl(), book.getAuthor(),
                 libraryBook.getCurrentPage(), totalPages, percent, libraryBook.getCompletedAt() != null, libraryBook.getCompletedAt(),

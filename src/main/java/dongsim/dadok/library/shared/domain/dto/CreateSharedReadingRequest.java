@@ -1,5 +1,7 @@
 package dongsim.dadok.library.shared.domain.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -12,7 +14,7 @@ public record CreateSharedReadingRequest(
         @JsonAlias("name") String partnerName,
         String title,
         String author,
-        @JsonProperty("total_page") @JsonAlias("totalPage") Integer totalPage,
+        @JsonProperty("total_page") @JsonAlias("totalPage") @Min(0) @Max(20000) Integer totalPage,
         @JsonAlias("isbn13") String isbn
 ) {
 }

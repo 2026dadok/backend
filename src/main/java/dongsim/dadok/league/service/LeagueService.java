@@ -19,7 +19,6 @@ import dongsim.dadok.book.repository.BookRepository;
 import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
 import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,11 +29,18 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.annotation.Propagation;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class LeagueService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(LeagueService.class);
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
@@ -85,9 +91,15 @@ public class LeagueService {
     }
 
     // 독서 시간 저장 이벤트 → 리그 참가 처리
-    @EventListener
+    // 독서 기록이 커밋된 뒤 별도 트랜잭션에서 처리 (여기서 실패해도 독서 기록은 남는다)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleReadingCompleted(ReadingCompletedEvent event) {
-        onReadingSaved(event.getUser());
+        try {
+            onReadingSaved(event.getUser());
+        } catch (RuntimeException e) {
+            LOG.warn("주간 리그 참가 처리 실패 userId={}", event.getUser().getUserId(), e);
+        }
     }
 
     // 독서 시간이 저장된 뒤 호출: 이번 주 리그 참가 + 현재 순위로 업적 검사
@@ -136,7 +148,7 @@ public class LeagueService {
                         int total = book.getPages();
                         info.put("read_page", lib.getCurrentPage());
                         info.put("total_page", total);
-                        info.put("percent", total == 0 ? 0 : Math.min(100, lib.getCurrentPage() * 100 / total));
+                        info.put("percent", total <= 0 ? 0 : (int) Math.min(100L, lib.getCurrentPage() * 100L / total));
                     });
                     return (Object) info;
                 })
