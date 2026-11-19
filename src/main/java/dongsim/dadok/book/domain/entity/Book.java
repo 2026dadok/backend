@@ -34,6 +34,10 @@ public class Book {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    // YES24 월간 베스트셀러 목록에 한 번이라도 오른 책 (베스트셀러 업적). 표시 전에는 null
+    @Column(name = "bestseller")
+    private Boolean bestseller;
+
     public Book() {}
 
     public Book(String bookTitle, String coverUrl, String publisher, String author, String genre, String isbn13, int pages, String description) {
@@ -56,6 +60,12 @@ public class Book {
     public String getIsbn13() { return isbn13; }
     public int getPages() { return pages; }
     public String getDescription() { return description; }
+
+    public boolean isBestseller() { return Boolean.TRUE.equals(bestseller); }
+
+    public void markBestseller() {
+        this.bestseller = true;
+    }
 
     public void updateDescription(String description) {
         this.description = description;

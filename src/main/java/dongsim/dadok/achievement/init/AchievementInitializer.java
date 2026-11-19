@@ -19,9 +19,26 @@ public class AchievementInitializer implements ApplicationRunner {
 
     private final AchievementRepository achievementRepository;
 
+    // 정독가: 감상문 10번 이상 작성
+    private static final String READER_DESCRIPTION = "감상문을 10번 이상 작성한다.";
+    private static final int READER_TARGET = 10;
+
+    // 이미 업적 데이터가 있는 DB도 정독가 조건을 새 기준으로 맞춘다
+    private void updateReaderAchievement() {
+        achievementRepository.findAllByConditionType(REVIEW_EVERY_SESSION).forEach(a -> {
+            if (!READER_DESCRIPTION.equals(a.getDescription()) || !Integer.valueOf(READER_TARGET).equals(a.getTargetValue())) {
+                a.updateCondition(READER_DESCRIPTION, READER_TARGET);
+                achievementRepository.save(a);
+            }
+        });
+    }
+
     @Override
     public void run(ApplicationArguments args) {
-        if (achievementRepository.count() > 0) return;
+        if (achievementRepository.count() > 0) {
+            updateReaderAchievement();
+            return;
+        }
 
         achievementRepository.saveAll(List.of(
                 a("베스트셀러", "베스트셀러 3권을 완독했다.", FINISH_BESTSELLER, 3, null),
@@ -34,7 +51,7 @@ public class AchievementInitializer implements ApplicationRunner {
                 a("비범이", "책 100권을 완독한다.", FINISH_COUNT, 100, null),
                 a("지식의 나무", "책 1000권을 완독한다.", FINISH_COUNT, 1000, null),
                 a("속독가", "처음 읽기 시작한 책을 타이머 작동 후 단번에 완독한다.", ONE_SESSION_FINISH, 1, null),
-                a("정독가", "한 책을 완독할 때까지 독서 후 감상문을 쓴다.", REVIEW_EVERY_SESSION, 1, null),
+                a("정독가", READER_DESCRIPTION, REVIEW_EVERY_SESSION, READER_TARGET, null),
                 a("독서왕", "주간 경쟁 순위 10위권에 진입한다.", WEEKLY_RANK_ENTER, 10, null),
                 a("다독왕", "주간 경쟁 순위 10위권으로 마무리한다.", WEEKLY_RANK_FINISH, 10, null),
                 a("일일천하", "주간 경쟁 1위를 달성한다.", WEEKLY_RANK_ENTER, 1, null),

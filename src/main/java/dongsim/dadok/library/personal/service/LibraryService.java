@@ -1,5 +1,6 @@
 package dongsim.dadok.library.personal.service;
 
+import dongsim.dadok.book.service.BestsellerRegistry;
 import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.library.personal.domain.dto.*;
 import dongsim.dadok.library.personal.domain.entity.PersonalLibraryBook;
@@ -33,6 +34,7 @@ public class LibraryService {
     private final BookRepository bookRepository;
     private final QuestService questService;
     private final AchievementService achievementService;
+    private final BestsellerRegistry bestsellerRegistry;
 
     public LibraryService(
             PersonalLibraryBookRepository personalLibraryBookRepository,
@@ -40,9 +42,11 @@ public class LibraryService {
             UserRepository userRepository,
             BookRepository bookRepository,
             QuestService questService,
-            AchievementService achievementService
+            AchievementService achievementService,
+            BestsellerRegistry bestsellerRegistry
     ) {
         this.achievementService = achievementService;
+        this.bestsellerRegistry = bestsellerRegistry;
         this.personalLibraryBookRepository = personalLibraryBookRepository;
         this.personalReadingLogRepository = personalReadingLogRepository;
         this.userRepository = userRepository;
@@ -56,6 +60,9 @@ public class LibraryService {
         Book book = resolveBook(request);
         if (personalLibraryBookRepository.existsByUserAndBookBookId(user, book.getBookId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 개인 서재에 추가한 책입니다.");
+        }
+        if (!book.isBestseller() && bestsellerRegistry.contains(book.getIsbn13())) {
+            book.markBestseller();
         }
         PersonalLibraryBook saved = personalLibraryBookRepository.save(new PersonalLibraryBook(user, book));
         int gainedXp = questService.onBookRegistered(user);

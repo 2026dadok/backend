@@ -1,5 +1,6 @@
 package dongsim.dadok.achievement.service;
 
+import dongsim.dadok.book.domain.entity.Book;
 import java.util.regex.Pattern;
 import java.util.HashSet;
 import dongsim.dadok.time.domain.repository.ReadingLogRepository;
@@ -129,6 +130,14 @@ public class AchievementService {
         });
         newly.addAll(check(user, AchievementCondition.FINISH_COUNT, finishedBookIds.size()));
 
+        // 베스트셀러 완독 권수 (YES24 월간 베스트셀러에 오른 책)
+        Set<Long> finishedBestsellers = new HashSet<>();
+        finishedPersonal.stream().map(PersonalLibraryBook::getBook).filter(Book::isBestseller)
+                .forEach(b -> finishedBestsellers.add(b.getBookId()));
+        finishedShared.stream().map(SharedReading::getBook).filter(Book::isBestseller)
+                .forEach(b -> finishedBestsellers.add(b.getBookId()));
+        newly.addAll(check(user, AchievementCondition.FINISH_BESTSELLER, finishedBestsellers.size()));
+
         // 특정 도서 완독
         for (Achievement a : achievementRepository.findAllByConditionType(AchievementCondition.FINISH_BOOK)) {
             if (a.getTargetBook() != null && finishedTitles.stream().anyMatch(t -> isSameBook(t, a.getTargetBook()))
@@ -183,8 +192,11 @@ public class AchievementService {
     // 감상문 작성 개수 업적: 개인 서재 감상문 + 공동서재 감상문
     public List<String> checkFeelingCount(String userId) {
         User user = findUser(userId);
-        long count = reviewRepository.countByWriter(user) + dailyReflectionRepository.countByUserId(userId);
-        return check(user, AchievementCondition.FEELING_COUNT, (int) count);
+        int count = (int) (reviewRepository.countByWriter(user) + dailyReflectionRepository.countByUserId(userId));
+        List<String> newly = new ArrayList<>(check(user, AchievementCondition.FEELING_COUNT, count));
+        // 정독가: 감상문을 10번 이상 작성 (목표값은 업적 데이터의 target_value)
+        newly.addAll(check(user, AchievementCondition.REVIEW_EVERY_SESSION, count));
+        return newly;
     }
 
     // 순위 조건 업적 검사: rank가 목표 순위 이내인 업적을 달성 처리

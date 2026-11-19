@@ -30,4 +30,10 @@ public class Achievement {
 
     @Column(length = 100)
     private String targetBook;          // 특정 도서 업적의 책 제목 (없으면 null)
+
+    // 달성 조건 변경 (서버 시작 시 업적 기준을 맞출 때)
+    public void updateCondition(String description, Integer targetValue) {
+        this.description = description;
+        this.targetValue = targetValue;
+    }
 }
