@@ -44,6 +44,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(userId)
+                .id(java.util.UUID.randomUUID().toString()) // 같은 초에 발급해도 토큰이 서로 다르게
                 .claim(TYPE_CLAIM, REFRESH)
                 .issuedAt(now)
                 .expiration(validity)

@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class RefreshToken {
 
     // 교체 직후 예전 토큰을 받아 주는 시간 (동시에 온 재발급, 응답을 못 받은 재시도)
-    private static final Duration ROTATION_GRACE = Duration.ofSeconds(30);
+    private static final Duration ROTATION_GRACE = Duration.ofSeconds(10);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,7 +52,7 @@ public class RefreshToken {
         this.token = newToken;
     }
 
-    // 방금 교체된 바로 전 토큰인지 (교체 후 30초 이내)
+    // 방금 교체된 바로 전 토큰인지 (교체 후 10초 이내)
     public boolean isJustRotated(String presented, LocalDateTime now) {
         return previousToken != null && rotatedAt != null && previousToken.equals(presented)
                 && !now.isAfter(rotatedAt.plus(ROTATION_GRACE));

@@ -27,6 +27,8 @@ import java.security.SecureRandom;
 @Transactional(readOnly = true)
 public class AuthService {
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(AuthService.class);
+
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
@@ -155,7 +157,8 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getUserId());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId());
 
-        refreshTokenRepository.findByUserId(user.getUserId())
+        // 재발급과 겹치지 않게 잠그고 바꾼다
+        refreshTokenRepository.findByUserIdForUpdate(user.getUserId())
                 .ifPresentOrElse(
                         token -> token.updateToken(refreshToken),
                         () -> refreshTokenRepository.save(new RefreshToken(null, user.getUserId(), refreshToken))
@@ -179,6 +182,7 @@ public class AuthService {
         if (!refreshToken.equals(saved.getToken())) {
             // 방금 교체된 토큰(동시 재발급, 응답을 못 받은 재시도)이면 지금 토큰을 다시 준다
             if (saved.isJustRotated(refreshToken, now)) {
+                LOG.info("교체 직후 이전 refresh 토큰으로 재발급 userId={}", userId);
                 return new TokenResponse(jwtTokenProvider.createAccessToken(userId), saved.getToken());
             }
             // 오래전에 교체된 예전 토큰이 다시 왔다 = 탈취 가능성 → 저장된 토큰도 지워서 모두 다시 로그인하게 한다

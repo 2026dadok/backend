@@ -1,6 +1,5 @@
 package dongsim.dadok.review.controller;
 
-import dongsim.dadok.achievement.domain.entity.AchievementCondition;
 import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.auth.domain.repository.UserRepository;
@@ -51,10 +50,8 @@ public class FeelingController {
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("feeling_id", saved.getId());
-        // 감상문 작성 개수 업적 (작성자가 저장된 감상문 기준)
-        User writer = libraryBook.getUser();
-        body.put("new_achievements", achievementService.check(
-                writer, AchievementCondition.FEELING_COUNT, (int) reviewRepository.countByWriter(writer)));
+        // 감상문 작성 개수 업적 (개인 서재 + 공동서재 감상문)
+        body.put("new_achievements", achievementService.checkFeelingCount(userId));
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 

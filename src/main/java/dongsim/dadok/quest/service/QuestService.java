@@ -203,8 +203,7 @@ public class QuestService {
         checkReadTimeQuests(user, readingLogRepository.sumSecondsByUserAndDate(user, today), today);
     }
 
-    // 읽기 전용 트랜잭션(메인 페이지)에서 부를 때: 별도 쓰기 트랜잭션으로 처리한다
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // 메인 페이지 컨트롤러가 조회 전에 부른다 (자기 트랜잭션에서 처리)
     public void syncReadTimeQuests(String userId) {
         syncReadTimeQuests(findUser(userId), LocalDate.now(KST));
     }

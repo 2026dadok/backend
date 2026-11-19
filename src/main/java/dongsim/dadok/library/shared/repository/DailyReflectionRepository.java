@@ -12,4 +12,6 @@ public interface DailyReflectionRepository extends JpaRepository<DailyReflection
     List<DailyReflection> findBySharedReadingSharedReadingIdOrderByReadingDayDescCreatedAtDesc(Long sharedReadingId);
 
     List<DailyReflection> findBySharedReadingSharedReadingIdAndUserIdOrderByReadingDayDescCreatedAtDesc(Long sharedReadingId, String userId);
+
+    long countByUserId(String userId);
 }

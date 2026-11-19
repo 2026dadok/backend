@@ -1,5 +1,7 @@
 package dongsim.dadok.achievement.service;
 
+import dongsim.dadok.library.shared.repository.DailyReflectionRepository;
+import dongsim.dadok.review.repository.ReviewRepository;
 import dongsim.dadok.achievement.domain.dto.AchievementResponse;
 import dongsim.dadok.achievement.domain.dto.MessageResponse;
 import dongsim.dadok.achievement.domain.entity.Achievement;
@@ -45,6 +47,8 @@ public class AchievementService {
     private final AchievementRepository achievementRepository;
     private final UserAchievementRepository userAchievementRepository;
     private final UserStatRepository userStatRepository;
+    private final ReviewRepository reviewRepository;
+    private final DailyReflectionRepository dailyReflectionRepository;
 
     // 숫자 조건 업적 검사: value가 목표값 이상인 업적을 모두 달성 처리
     // 예) check(user, FINISH_COUNT, 10) → 완독의 맛(1), 똑똑이(10) 달성
@@ -87,6 +91,13 @@ public class AchievementService {
             }
         }
         return newly;
+    }
+
+    // 감상문 작성 개수 업적: 개인 서재 감상문 + 공동서재 감상문
+    public List<String> checkFeelingCount(String userId) {
+        User user = findUser(userId);
+        long count = reviewRepository.countByWriter(user) + dailyReflectionRepository.countByUserId(userId);
+        return check(user, AchievementCondition.FEELING_COUNT, (int) count);
     }
 
     // 순위 조건 업적 검사: rank가 목표 순위 이내인 업적을 달성 처리
@@ -153,6 +164,11 @@ public class AchievementService {
     }
 
     private boolean grant(User user, Achievement achievement) {
+        if (userAchievementRepository.existsByUserAndAchievement(user, achievement)) {
+            return false;
+        }
+        // 같은 사용자의 동시 요청이 같은 업적을 두 번 저장하지 않게 잠근 뒤 다시 확인한다
+        userStatRepository.lockOrCreate(user);
         if (userAchievementRepository.existsByUserAndAchievement(user, achievement)) {
             return false;
         }
