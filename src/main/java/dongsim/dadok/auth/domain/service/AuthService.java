@@ -1,6 +1,10 @@
 package dongsim.dadok.auth.domain.service;
 
 
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 import dongsim.dadok.auth.domain.Role;
 import dongsim.dadok.auth.domain.dto.*;
 import dongsim.dadok.auth.domain.entity.EmailVerification;
@@ -147,7 +151,9 @@ public class AuthService {
     // 4. 로그인
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        User user = userRepository.findByUserId(request.userId())
+        // 사용자 행을 잠근 상태로 읽어서 비밀번호를 확인한다
+        // (비밀번호 재설정·변경과 겹치면 한쪽이 끝난 뒤의 비밀번호로 확인하게 되어, 재설정 뒤에 예전 비밀번호로 세션이 생기지 않는다)
+        User user = userRepository.findByUserIdForUpdate(request.userId())
                 .orElseThrow(() -> new AuthenticationFailedException("아이디 또는 비밀번호가 올바르지 않습니다."));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
@@ -157,8 +163,7 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getUserId());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId());
 
-        // 재발급과 겹치지 않게 잠그고 바꾼다. 첫 로그인이 동시에 와도 한 번만 만들도록 사용자 행도 먼저 잠근다
-        userRepository.lockById(user.getId());
+        // 재발급과 겹치지 않게 잠그고 바꾼다 (사용자 행은 위에서 이미 잠가서 첫 로그인이 동시에 와도 한 번만 만든다)
         refreshTokenRepository.findByUserIdForUpdate(user.getUserId())
                 .ifPresentOrElse(
                         token -> token.updateToken(refreshToken),
@@ -184,8 +189,10 @@ public class AuthService {
         if (!saved.matches(refreshToken)) {
             // 방금 교체된 토큰(동시 재발급)이면 access 토큰만 새로 준다
             if (saved.isJustRotated(refreshToken, now)) {
-                LOG.info("교체 직후 이전 refresh 토큰으로 재발급 userId={}", userId);
-                return new TokenResponse(jwtTokenProvider.createAccessToken(userId), null);
+                // 응답을 못 받은 재시도일 수 있으므로, 기억해 둔 지금 토큰이 있으면 같은 쿠키를 다시 준다 (다시 교체하지 않음)
+                String current = recentRefreshToken(saved);
+                LOG.info("교체 직후 이전 refresh 토큰으로 재발급 userId={} 쿠키 재전달={}", userId, current != null);
+                return new TokenResponse(jwtTokenProvider.createAccessToken(userId), current);
             }
             // 재발급으로 이미 교체된 바로 전 토큰이 유예 뒤에 다시 왔다 = 탈취 가능성 → 저장된 토큰도 지운다
             if (saved.isPrevious(refreshToken)) {
@@ -198,7 +205,37 @@ public class AuthService {
         String newAccess = jwtTokenProvider.createAccessToken(userId);
         String newRefresh = jwtTokenProvider.createRefreshToken(userId);
         saved.rotate(newRefresh, now);
+        rememberAfterCommit(userId, newRefresh, now);
         return new TokenResponse(newAccess, newRefresh);
+    }
+
+    // 재발급 직후의 새 refresh 토큰 원문을 잠깐(1분) 서버 메모리에만 기억한다.
+    // DB에는 해시만 있어서, 유예 시간 안의 재시도에 같은 쿠키를 다시 주려면 원문이 필요하다.
+    // 서버가 재시작되면 비워지고, 그때 재시도는 access 토큰만 받는다
+    private record RecentRefresh(String rawToken, LocalDateTime issuedAt) {}
+    private final Map<String, RecentRefresh> recentRefresh = new ConcurrentHashMap<>();
+
+    private String recentRefreshToken(RefreshToken saved) {
+        RecentRefresh recent = recentRefresh.get(saved.getUserId());
+        return recent != null && saved.matches(recent.rawToken()) ? recent.rawToken() : null;
+    }
+
+    // 교체가 커밋된 뒤에만 기억한다 (롤백되면 기억하지 않음)
+    private void rememberAfterCommit(String userId, String rawToken, LocalDateTime now) {
+        Runnable remember = () -> {
+            recentRefresh.values().removeIf(r -> r.issuedAt().isBefore(now.minusMinutes(1)));
+            recentRefresh.put(userId, new RecentRefresh(rawToken, now));
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    remember.run();
+                }
+            });
+        } else {
+            remember.run();
+        }
     }
 
     // 5. 로그아웃
@@ -244,7 +281,8 @@ public class AuthService {
             throw new InvalidVerificationException("이메일 인증을 먼저 완료해주세요.");
         }
 
-        User user = userRepository.findByEmail(request.email())
+        // 로그인과 같은 사용자 행 잠금: 재설정이 끝나기 전 로그인은 기다렸다가 새 비밀번호로 확인된다
+        User user = userRepository.findByEmailForUpdate(request.email())
                 .orElseThrow(() -> new UserNotFoundException("존재하지 않는 회원입니다."));
 
         user.updatePassword(passwordEncoder.encode(request.newPassword()));

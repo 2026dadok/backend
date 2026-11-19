@@ -88,7 +88,8 @@ public class MyPageService {
     // 정보 수정 (이메일 제외, 새 비밀번호가 있을 때만 비밀번호 변경)
     @Transactional
     public MessageResponse editInfo(String userId, EditInfoRequest request) {
-        User user = userStatRepository.findUserByUserId(userId)
+        // 로그인과 같은 사용자 행 잠금 (비밀번호 확인·변경 중에 로그인이 끼어들지 않게)
+        User user = userStatRepository.lockUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
         String password = user.getPassword();
@@ -114,7 +115,7 @@ public class MyPageService {
     // 회원탈퇴 (이메일·비밀번호만 삭제, 다른 기록은 유지)
     @Transactional
     public MessageResponse withdraw(String userId) {
-        User user = userStatRepository.findUserByUserId(userId)
+        User user = userStatRepository.lockUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
         refreshTokenRepository.deleteByUserId(userId);

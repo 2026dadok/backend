@@ -17,8 +17,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUserId(String userId);
     boolean existsByEmail(String email);
 
-    // 사용자 행 잠금 (같은 사용자의 동시 요청을 한 줄로 세움)
+    // 로그인·비밀번호 재설정용 잠금 조회: 비밀번호 확인과 변경이 겹치지 않게 한다
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from User u where u.id = :id")
-    Optional<User> lockById(@Param("id") Long id);
+    @Query("select u from User u where u.userId = :userId")
+    Optional<User> findByUserIdForUpdate(@Param("userId") String userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.email = :email")
+    Optional<User> findByEmailForUpdate(@Param("email") String email);
 }

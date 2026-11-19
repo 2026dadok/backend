@@ -59,8 +59,9 @@ public class RefreshToken {
     }
 
     // 지금 토큰과 같은지
+    // 해시 저장 전 버전이 원문으로 저장한 행도 받아 준다 (배포 직후 기존 로그인 유지). 다음 교체부터는 해시로 저장된다
     public boolean matches(String rawToken) {
-        return rawToken != null && token.equals(hash(rawToken));
+        return rawToken != null && (token.equals(hash(rawToken)) || token.equals(rawToken));
     }
 
     // 바로 전 토큰과 같은지 (교체된 시각과 무관)

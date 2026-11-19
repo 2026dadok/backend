@@ -31,6 +31,11 @@ public interface UserStatRepository extends JpaRepository<UserStat, Long> {
         return findByUserForUpdate(user).orElseGet(() -> saveAndFlush(new UserStat(user)));
     }
 
+    // 아이디로 User 를 잠금 조회 (비밀번호 변경·탈퇴가 로그인과 겹치지 않게)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.userId = :userId")
+    Optional<User> lockUserByUserId(@Param("userId") String userId);
+
     // 토큰의 아이디로 User 조회
     @Query("select u from User u where u.userId = :userId")
     Optional<User> findUserByUserId(String userId);
