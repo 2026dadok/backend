@@ -19,6 +19,11 @@ public interface SharedReadingRepository extends JpaRepository<SharedReading, Lo
     @EntityGraph(attributePaths = {"book", "members"})
     List<SharedReading> findDistinctByMembersUserIdOrderByCreatedAtDesc(String userId);
 
+    // 쪽수 저장 때 공동서재 행을 잠근다 (두 사람이 동시에 완독해도 완료 처리가 빠지지 않게)
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from SharedReading s where s.sharedReadingId = :id")
+    Optional<SharedReading> lockById(@Param("id") Long id);
+
     // 사용자가 공동서재에서 읽은 쪽수 합계 (마이페이지 총 독서 쪽수)
     @Query("select coalesce(sum(m.currentPage), 0) from SharedReadingMember m where m.userId = :userId")
     long sumCurrentPageByUserId(@Param("userId") String userId);

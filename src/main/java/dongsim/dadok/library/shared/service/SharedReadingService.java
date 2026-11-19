@@ -1,5 +1,6 @@
 package dongsim.dadok.library.shared.service;
 
+import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.library.shared.domain.dto.*;
 import dongsim.dadok.library.shared.domain.entity.*;
 import dongsim.dadok.library.shared.repository.DailyReflectionRepository;
@@ -29,14 +30,17 @@ public class SharedReadingService {
     private final BookRepository bookRepository;
     private final UserRepository userRepository;
     private final QuestService questService;
+    private final AchievementService achievementService;
 
     public SharedReadingService(
             SharedReadingRepository sharedReadingRepository,
             DailyReflectionRepository dailyReflectionRepository,
             BookRepository bookRepository,
             UserRepository userRepository,
-            QuestService questService
+            QuestService questService,
+            AchievementService achievementService
     ) {
+        this.achievementService = achievementService;
         this.sharedReadingRepository = sharedReadingRepository;
         this.dailyReflectionRepository = dailyReflectionRepository;
         this.bookRepository = bookRepository;
@@ -92,6 +96,8 @@ public class SharedReadingService {
     public SharedReadingResponse updateProgress(String userId, Long sharedReadingId, UpdateProgressRequest request) {
         // 같은 사용자의 쪽수 저장을 한 줄로 세움 (진행도 이중 집계 방지)
         userRepository.findByUserId(userId).ifPresent(questService::lockUser);
+        // 공동서재 행 잠금: 두 사람이 동시에 완독해도 서로의 완독이 보여서 종료 처리가 빠지지 않는다 (잠금 순서: 사용자 → 공동서재)
+        sharedReadingRepository.lockById(sharedReadingId);
         SharedReading sharedReading = getParticipantReading(userId, sharedReadingId);
         if (sharedReading.getStatus() == SharedReadingStatus.COMPLETED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "종료된 공동 읽기입니다.");
@@ -124,7 +130,11 @@ public class SharedReadingService {
         if (sharedReading.getMembers().stream().allMatch(it -> it.getCompletedAt() != null)) {
             sharedReading.complete();
         }
-        return toResponse(sharedReading, userId);
+        // 이번 저장으로 완독했으면 내 완독·공동서재 업적을 판정한다 (상대 업적은 상대가 다음에 접속할 때 판정)
+        List<String> newAchievements = justCompleted
+                ? userRepository.findByUserId(userId).map(achievementService::syncProgressAchievements).orElse(List.of())
+                : List.of();
+        return toResponse(sharedReading, userId, newAchievements);
     }
 
     @Transactional
@@ -176,6 +186,10 @@ public class SharedReadingService {
     }
 
     private SharedReadingResponse toResponse(SharedReading sharedReading, String viewerUserId) {
+        return toResponse(sharedReading, viewerUserId, List.of());
+    }
+
+    private SharedReadingResponse toResponse(SharedReading sharedReading, String viewerUserId, List<String> newAchievements) {
         int totalPages = sharedReading.getBook().getPages();
         List<SharedReadingResponse.MemberProgressResponse> members = sharedReading.getMembers().stream()
                 .map(member -> new SharedReadingResponse.MemberProgressResponse(
@@ -186,7 +200,7 @@ public class SharedReadingService {
         return new SharedReadingResponse(
                 sharedReading.getSharedReadingId(), sharedReading.getBook().getBookId(), sharedReading.getBook().getBookTitle(),
                 sharedReading.getBook().getCoverUrl(), sharedReading.getStatus(), sharedReading.getWinnerUserId(), members,
-                totalPages, sharedReading.getCreatedAt(), viewerUserId
+                totalPages, sharedReading.getCreatedAt(), viewerUserId, newAchievements
         );
     }
 

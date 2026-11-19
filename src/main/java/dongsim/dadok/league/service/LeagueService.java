@@ -91,6 +91,8 @@ public class LeagueService {
 
     // 이번 주 참가 기록 (없으면 현재 티어로 리그 배정)
     public WeeklyEntry getOrCreateEntry(User user, LocalDate monday) {
+        // 이번 주 첫 요청이 동시에 와도 한 번만 만들도록 사용자 행을 먼저 잠근다
+        userStatRepository.lockUserRow(user.getId());
         return weeklyEntryRepository.findByUserAndWeekStart(user, monday)
                 .orElseGet(() -> weeklyEntryRepository.save(new WeeklyEntry(user, monday, Tier.of(getXp(user)))));
     }

@@ -52,7 +52,8 @@ public class SharedReadingMember {
 
     public boolean updateProgress(int currentPage, int totalPages) {
         this.currentPage = currentPage;
-        if (currentPage == totalPages && completedAt == null) {
+        // 전체 쪽수를 모르는 책(0)은 완독으로 보지 않는다
+        if (totalPages > 0 && currentPage == totalPages && completedAt == null) {
             completedAt = LocalDateTime.now();
             return true;
         }

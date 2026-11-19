@@ -21,6 +21,9 @@ public interface PersonalLibraryBookRepository extends JpaRepository<PersonalLib
     @EntityGraph(attributePaths = "book")
     List<PersonalLibraryBook> findByUserOrderByCreatedAtDesc(User user);
 
+    // 완독한 책 (업적 판정)
+    List<PersonalLibraryBook> findAllByUserAndCompletedAtIsNotNull(User user);
+
     // 개인 서재에서 읽은 쪽수 합계 (마이페이지)
     @Query("select coalesce(sum(p.currentPage), 0) from PersonalLibraryBook p where p.user = :user")
     long sumCurrentPageByUser(User user);

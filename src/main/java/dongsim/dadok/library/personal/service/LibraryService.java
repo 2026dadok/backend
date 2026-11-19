@@ -1,5 +1,6 @@
 package dongsim.dadok.library.personal.service;
 
+import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.library.personal.domain.dto.*;
 import dongsim.dadok.library.personal.domain.entity.PersonalLibraryBook;
 import dongsim.dadok.library.personal.domain.entity.PersonalReadingLog;
@@ -31,14 +32,17 @@ public class LibraryService {
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
     private final QuestService questService;
+    private final AchievementService achievementService;
 
     public LibraryService(
             PersonalLibraryBookRepository personalLibraryBookRepository,
             PersonalReadingLogRepository personalReadingLogRepository,
             UserRepository userRepository,
             BookRepository bookRepository,
-            QuestService questService
+            QuestService questService,
+            AchievementService achievementService
     ) {
+        this.achievementService = achievementService;
         this.personalLibraryBookRepository = personalLibraryBookRepository;
         this.personalReadingLogRepository = personalReadingLogRepository;
         this.userRepository = userRepository;
@@ -87,6 +91,7 @@ public class LibraryService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "읽은 페이지는 이전 진행도보다 낮게 설정할 수 없습니다.");
         }
         int gainedXp = 0;
+        boolean wasCompleted = libraryBook.getCompletedAt() != null;
         if (libraryBook.updateProgress(request.currentPage(), totalPages)) {
             personalReadingLogRepository.save(new PersonalReadingLog(libraryBook, LocalDate.now(KST)));
             // 전체 쪽수를 모르는 책은 쪽수를 확인할 수 없어 주간 쪽수 퀘스트에 넣지 않는다
@@ -94,7 +99,11 @@ public class LibraryService {
                 gainedXp = questService.addReadPages(user, request.currentPage() - before);
             }
         }
-        return toResponse(libraryBook, gainedXp);
+        // 이번 저장으로 완독했으면 완독 업적을 판정한다
+        List<String> newAchievements = !wasCompleted && libraryBook.getCompletedAt() != null
+                ? achievementService.syncProgressAchievements(user)
+                : List.of();
+        return toResponse(libraryBook, gainedXp, newAchievements);
     }
 
     private PersonalLibraryBook getLibraryBook(User user, Long bookId) {
@@ -132,13 +141,17 @@ public class LibraryService {
     }
 
     private LibraryBookResponse toResponse(PersonalLibraryBook libraryBook, int gainedXp) {
+        return toResponse(libraryBook, gainedXp, List.of());
+    }
+
+    private LibraryBookResponse toResponse(PersonalLibraryBook libraryBook, int gainedXp, List<String> newAchievements) {
         Book book = libraryBook.getBook();
         int totalPages = book.getPages();
         int percent = totalPages <= 0 ? 0 : (int) Math.min(100L, libraryBook.getCurrentPage() * 100L / totalPages);
         return new LibraryBookResponse(
                 libraryBook.getPersonalLibraryBookId(), book.getBookId(), book.getBookTitle(), book.getCoverUrl(), book.getAuthor(),
                 libraryBook.getCurrentPage(), totalPages, percent, libraryBook.getCompletedAt() != null, libraryBook.getCompletedAt(),
-                libraryBook.getCreatedAt(), gainedXp
+                libraryBook.getCreatedAt(), gainedXp, newAchievements
         );
     }
 }

@@ -19,7 +19,8 @@ public record SharedReadingResponse(
         List<MemberProgressResponse> members,
         int totalPages,
         LocalDateTime createdAt,
-        @JsonIgnore String viewerUserId
+        @JsonIgnore String viewerUserId,
+        @JsonProperty("new_achievements") List<String> newAchievements // 이번 요청으로 달성한 업적 (쪽수 저장 응답)
 ) {
     public record MemberProgressResponse(String userId, String name, int currentPage, int totalPages, int progressPercent, LocalDateTime completedAt) {
     }

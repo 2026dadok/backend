@@ -217,6 +217,7 @@ public class QuestService {
         User user = findUser(userId);
         syncReadTimeQuests(user, LocalDate.now(KST));
         syncFirstRead(user);
+        achievementService.syncProgressAchievements(user);
     }
 
     // GET /quests/daily

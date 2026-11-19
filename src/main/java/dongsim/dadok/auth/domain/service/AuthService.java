@@ -157,7 +157,8 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getUserId());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId());
 
-        // 재발급과 겹치지 않게 잠그고 바꾼다
+        // 재발급과 겹치지 않게 잠그고 바꾼다. 첫 로그인이 동시에 와도 한 번만 만들도록 사용자 행도 먼저 잠근다
+        userRepository.lockById(user.getId());
         refreshTokenRepository.findByUserIdForUpdate(user.getUserId())
                 .ifPresentOrElse(
                         token -> token.updateToken(refreshToken),
