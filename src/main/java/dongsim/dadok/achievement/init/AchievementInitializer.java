@@ -23,6 +23,14 @@ public class AchievementInitializer implements ApplicationRunner {
     private static final String READER_DESCRIPTION = "감상문을 10번 이상 작성한다.";
     private static final int READER_TARGET = 10;
 
+    // 스테디셀러 업적은 판정할 데이터가 없어 뺐다. 이미 있는 DB에서도 지운다 (달성한 사람이 없어 연결된 기록이 없다)
+    private void removeSteadysellerAchievement() {
+        List<Achievement> rows = achievementRepository.findAllByConditionType(FINISH_STEADYSELLER);
+        if (!rows.isEmpty()) {
+            achievementRepository.deleteAll(rows);
+        }
+    }
+
     // 이미 업적 데이터가 있는 DB도 정독가 조건을 새 기준으로 맞춘다
     private void updateReaderAchievement() {
         achievementRepository.findAllByConditionType(REVIEW_EVERY_SESSION).forEach(a -> {
@@ -37,12 +45,12 @@ public class AchievementInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         if (achievementRepository.count() > 0) {
             updateReaderAchievement();
+            removeSteadysellerAchievement();
             return;
         }
 
         achievementRepository.saveAll(List.of(
                 a("베스트셀러", "베스트셀러 3권을 완독했다.", FINISH_BESTSELLER, 3, null),
-                a("스테디셀러", "스테디셀러 3권을 완독했다.", FINISH_STEADYSELLER, 3, null),
                 a("목차 탈출 성공", "책을 처음 읽었다.", FIRST_READ, 1, null),
                 a("완독의 맛", "책을 처음으로 완독했다.", FINISH_COUNT, 1, null),
                 a("주경야독", "오후 11시 ~ 오전 5시 사이에 책을 읽는다.", NIGHT_READ, 1, null),

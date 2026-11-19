@@ -4,7 +4,7 @@ package dongsim.dadok.achievement.domain.entity;
 public enum AchievementCondition {
     FINISH_COUNT,           // 완독 권수
     FINISH_BESTSELLER,      // 베스트셀러 완독 권수
-    FINISH_STEADYSELLER,    // 스테디셀러 완독 권수
+    FINISH_STEADYSELLER,    // 사용 안 함 (스테디셀러 업적 삭제, 기존 DB 행을 읽고 지우기 위해 남겨 둠)
     FINISH_BOOK,            // 특정 도서 완독
     FIRST_READ,             // 첫 독서
     NIGHT_READ,             // 23시 ~ 05시 독서
