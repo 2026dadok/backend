@@ -99,14 +99,17 @@ public class AuthController {
         String refreshToken = cookieToken != null ? cookieToken : (body == null ? null : body.get("refreshToken"));
         TokenResponse tokens = authService.refresh(refreshToken);
 
-        ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokens.refreshToken())
-                .httpOnly(true)
-                .secure(secureCookie)
-                .path("/")
-                .maxAge(14 * 24 * 60 * 60)
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
+        // 교체 직후 재요청이면 refresh 토큰은 그대로라 쿠키를 다시 주지 않는다
+        if (tokens.refreshToken() != null) {
+            ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokens.refreshToken())
+                    .httpOnly(true)
+                    .secure(secureCookie)
+                    .path("/")
+                    .maxAge(14 * 24 * 60 * 60)
+                    .sameSite("Lax")
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
+        }
 
         return ResponseEntity.ok(Map.of("accessToken", tokens.accessToken()));
     }

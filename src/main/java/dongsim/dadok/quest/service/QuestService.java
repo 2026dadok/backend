@@ -1,5 +1,6 @@
 package dongsim.dadok.quest.service;
 
+import dongsim.dadok.achievement.domain.entity.AchievementCondition;
 import dongsim.dadok.achievement.service.AchievementService;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.quest.domain.dto.AttendanceResponse;
@@ -50,7 +51,8 @@ public class QuestService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleReadingCompleted(ReadingCompletedEvent event) {
         try {
-            checkReadTimeQuests(event.getUser(), event.getTodaySeconds(), event.getToday());
+            // 동시에 저장된 기록까지 포함하도록 DB에서 다시 합산한다
+            syncReadTimeQuests(event.getUser(), event.getToday());
         } catch (RuntimeException e) {
             LOG.warn("독서 시간 퀘스트 처리 실패 userId={}", event.getUser().getUserId(), e);
         }
@@ -203,9 +205,18 @@ public class QuestService {
         checkReadTimeQuests(user, readingLogRepository.sumSecondsByUserAndDate(user, today), today);
     }
 
+    // 메인 페이지 조회 때 추가 보정: 독서 기록이 있는데 "첫 독서" 업적이 빠졌으면 채운다 (이미 있으면 건너뜀)
+    private void syncFirstRead(User user) {
+        if (readingLogRepository.existsByUser(user)) {
+            achievementService.check(user, AchievementCondition.FIRST_READ, 1);
+        }
+    }
+
     // 메인 페이지 컨트롤러가 조회 전에 부른다 (자기 트랜잭션에서 처리)
     public void syncReadTimeQuests(String userId) {
-        syncReadTimeQuests(findUser(userId), LocalDate.now(KST));
+        User user = findUser(userId);
+        syncReadTimeQuests(user, LocalDate.now(KST));
+        syncFirstRead(user);
     }
 
     // GET /quests/daily

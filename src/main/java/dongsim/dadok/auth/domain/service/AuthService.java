@@ -168,6 +168,7 @@ public class AuthService {
     }
 
     // 토큰 재발급: 저장된 refresh 토큰과 같을 때만 새 access/refresh 토큰 발급 (refresh 토큰도 교체)
+    // 교체 직후(10초 이내) 바로 전 토큰이 오면 access 토큰만 새로 주고 refresh 토큰은 그대로 둔다 (응답의 refreshToken 은 null)
     // 예전 토큰 재사용으로 저장된 토큰을 지운 뒤 예외를 던지므로 롤백하지 않는다
     @Transactional(noRollbackFor = AuthenticationFailedException.class)
     public TokenResponse refresh(String refreshToken) {
@@ -179,14 +180,17 @@ public class AuthService {
         RefreshToken saved = refreshTokenRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(() -> new AuthenticationFailedException("다시 로그인해주세요."));
         LocalDateTime now = LocalDateTime.now();
-        if (!refreshToken.equals(saved.getToken())) {
-            // 방금 교체된 토큰(동시 재발급, 응답을 못 받은 재시도)이면 지금 토큰을 다시 준다
+        if (!saved.matches(refreshToken)) {
+            // 방금 교체된 토큰(동시 재발급)이면 access 토큰만 새로 준다
             if (saved.isJustRotated(refreshToken, now)) {
                 LOG.info("교체 직후 이전 refresh 토큰으로 재발급 userId={}", userId);
-                return new TokenResponse(jwtTokenProvider.createAccessToken(userId), saved.getToken());
+                return new TokenResponse(jwtTokenProvider.createAccessToken(userId), null);
             }
-            // 오래전에 교체된 예전 토큰이 다시 왔다 = 탈취 가능성 → 저장된 토큰도 지워서 모두 다시 로그인하게 한다
-            refreshTokenRepository.delete(saved);
+            // 재발급으로 이미 교체된 바로 전 토큰이 유예 뒤에 다시 왔다 = 탈취 가능성 → 저장된 토큰도 지운다
+            if (saved.isPrevious(refreshToken)) {
+                refreshTokenRepository.delete(saved);
+            }
+            // 그 밖의 예전 토큰(다시 로그인하기 전 다른 기기의 토큰 등)은 거절만 하고 지금 로그인은 건드리지 않는다
             throw new AuthenticationFailedException("다시 로그인해주세요.");
         }
 
@@ -200,12 +204,17 @@ public class AuthService {
     @Transactional
     public void logout(String userId, String refreshToken) {
         String target = userId;
-        if ((target == null || "anonymousUser".equals(target)) && refreshToken != null
-                && jwtTokenProvider.validateToken(refreshToken) && jwtTokenProvider.isRefreshToken(refreshToken)) {
-            target = jwtTokenProvider.getUserIdFromToken(refreshToken);
-        }
         if (target != null && !"anonymousUser".equals(target)) {
             refreshTokenRepository.deleteByUserId(target);
+            return;
+        }
+        // access 토큰이 만료된 로그아웃: refresh 쿠키가 지금 저장된 토큰과 같을 때만 지운다
+        // (예전 토큰으로 다른 기기의 새 로그인을 끊지 않게)
+        if (refreshToken != null && jwtTokenProvider.validateToken(refreshToken) && jwtTokenProvider.isRefreshToken(refreshToken)) {
+            String owner = jwtTokenProvider.getUserIdFromToken(refreshToken);
+            refreshTokenRepository.findByUserIdForUpdate(owner)
+                    .filter(saved -> saved.matches(refreshToken))
+                    .ifPresent(refreshTokenRepository::delete);
         }
     }
 
