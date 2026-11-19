@@ -102,7 +102,7 @@ public class ProfileImageService {
 
     private UserStat getOrCreateStat(User user) {
         return userStatRepository.findByUser(user)
-                .orElseGet(() -> userStatRepository.save(new UserStat(user)));
+                .orElseGet(() -> userStatRepository.lockOrCreate(user));
     }
 
     // DB 반영이 끝난 뒤에 이전 파일 삭제 (롤백되면 파일은 그대로 둔다)

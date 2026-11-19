@@ -162,7 +162,7 @@ public class AchievementService {
 
     private UserStat getOrCreateStat(User user) {
         return userStatRepository.findByUser(user)
-                .orElseGet(() -> userStatRepository.save(new UserStat(user)));
+                .orElseGet(() -> userStatRepository.lockOrCreate(user));
     }
 
     private User findUser(String userId) {

@@ -173,17 +173,22 @@ public class AuthService {
             throw new AuthenticationFailedException("다시 로그인해주세요.");
         }
         String userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
-        RefreshToken saved = refreshTokenRepository.findByUserId(userId)
+        RefreshToken saved = refreshTokenRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(() -> new AuthenticationFailedException("다시 로그인해주세요."));
+        LocalDateTime now = LocalDateTime.now();
         if (!refreshToken.equals(saved.getToken())) {
-            // 이미 교체된 예전 토큰이 다시 왔다 = 탈취 가능성 → 저장된 토큰도 지워서 모두 다시 로그인하게 한다
+            // 방금 교체된 토큰(동시 재발급, 응답을 못 받은 재시도)이면 지금 토큰을 다시 준다
+            if (saved.isJustRotated(refreshToken, now)) {
+                return new TokenResponse(jwtTokenProvider.createAccessToken(userId), saved.getToken());
+            }
+            // 오래전에 교체된 예전 토큰이 다시 왔다 = 탈취 가능성 → 저장된 토큰도 지워서 모두 다시 로그인하게 한다
             refreshTokenRepository.delete(saved);
             throw new AuthenticationFailedException("다시 로그인해주세요.");
         }
 
         String newAccess = jwtTokenProvider.createAccessToken(userId);
         String newRefresh = jwtTokenProvider.createRefreshToken(userId);
-        saved.updateToken(newRefresh);
+        saved.rotate(newRefresh, now);
         return new TokenResponse(newAccess, newRefresh);
     }
 

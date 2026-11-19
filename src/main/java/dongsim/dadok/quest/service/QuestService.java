@@ -12,6 +12,7 @@ import dongsim.dadok.quest.domain.repository.QuestRepository;
 import dongsim.dadok.quest.domain.repository.UserQuestRepository;
 import dongsim.dadok.quest.domain.repository.UserStatRepository;
 import dongsim.dadok.time.domain.event.ReadingCompletedEvent;
+import dongsim.dadok.time.domain.repository.ReadingLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class QuestService {
     private final QuestRepository questRepository;
     private final UserQuestRepository userQuestRepository;
     private final UserStatRepository userStatRepository;
+    private final ReadingLogRepository readingLogRepository;
     // 독서 기록이 커밋된 뒤 별도 트랜잭션에서 처리 (여기서 실패해도 독서 기록은 남는다)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -195,11 +197,23 @@ public class QuestService {
                 .orElse(null);
     }
 
+    // 독서 기록은 저장됐는데 퀘스트 처리가 빠진 경우(처리 중 서버 종료, 처리 실패)를 메운다.
+    // 오늘 읽은 시간 합계로 다시 판정하고, 이미 완료한 퀘스트는 건너뛴다
+    private void syncReadTimeQuests(User user, LocalDate today) {
+        checkReadTimeQuests(user, readingLogRepository.sumSecondsByUserAndDate(user, today), today);
+    }
+
+    // 읽기 전용 트랜잭션(메인 페이지)에서 부를 때: 별도 쓰기 트랜잭션으로 처리한다
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void syncReadTimeQuests(String userId) {
+        syncReadTimeQuests(findUser(userId), LocalDate.now(KST));
+    }
+
     // GET /quests/daily
-    @Transactional(readOnly = true)
     public DailyQuestListResponse getDailyQuestList(String userId) {
         User user = findUser(userId);
         LocalDate today = LocalDate.now(KST);
+        syncReadTimeQuests(user, today);
         List<DailyQuestListResponse.Item> items = new java.util.ArrayList<>();
         int allClearXp = 0;
         boolean allClearDone = false;
@@ -249,10 +263,7 @@ public class QuestService {
     // 사용자별 잠금: 같은 사용자의 XP·퀘스트 변경을 한 줄로 세운다 (트랜잭션이 끝날 때까지 유지)
     // 읽기 격리수준은 READ COMMITTED (application.yaml) 라서 잠금 뒤에는 다른 요청이 커밋한 값이 보인다
     public UserStat lockUser(User user) {
-        return userStatRepository.findByUserForUpdate(user).orElseGet(() -> {
-            userStatRepository.saveAndFlush(new UserStat(user));
-            return userStatRepository.findByUserForUpdate(user).orElseThrow();
-        });
+        return userStatRepository.lockOrCreate(user);
     }
 
     // XP 지급: 기록(UserStat)이 없으면 새로 만들고 더함

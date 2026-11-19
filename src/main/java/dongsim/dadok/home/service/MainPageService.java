@@ -1,5 +1,7 @@
 package dongsim.dadok.home.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.home.domain.dto.MainPageResponse;
 import dongsim.dadok.quest.domain.dto.DailyQuestResponse;
@@ -18,10 +20,18 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class MainPageService {
 
+    private static final Logger LOG = LoggerFactory.getLogger(MainPageService.class);
+
     private final UserStatRepository userStatRepository;
     private final QuestService questService;
 
     public MainPageResponse getMainPage(String userId) {
+        // 빠진 독서 시간 퀘스트를 먼저 채운다. 실패해도 메인 페이지는 보여준다
+        try {
+            questService.syncReadTimeQuests(userId);
+        } catch (RuntimeException e) {
+            LOG.warn("독서 시간 퀘스트 재확인 실패 userId={}", userId, e);
+        }
         User user = userStatRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
 
