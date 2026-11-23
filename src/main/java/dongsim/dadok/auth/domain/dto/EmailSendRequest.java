@@ -7,5 +7,5 @@ import jakarta.validation.constraints.NotNull;
 
 public record EmailSendRequest(
         @NotBlank @Email String email,
-        @NotNull Verification type)
+        @NotNull Verification purpose)
 {}

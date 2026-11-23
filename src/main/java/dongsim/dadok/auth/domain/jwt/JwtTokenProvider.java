@@ -25,37 +25,62 @@ public class JwtTokenProvider {
         this.refreshTokenValidity = refreshTokenValidity;
     }
 
-    public String createAccessToken(String email) {
+    public String createAccessToken(String userId) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + accessTokenValidity);
 
         return Jwts.builder()
-                .subject(email)
+                .subject(userId)
+                .claim(TYPE_CLAIM, ACCESS)
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(secretKey)
                 .compact();
     }
 
-    public String createRefreshToken(String email) {
+    public String createRefreshToken(String userId) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + refreshTokenValidity);
 
         return Jwts.builder()
-                .subject(email)
+                .subject(userId)
+                .id(java.util.UUID.randomUUID().toString()) // 같은 초에 발급해도 토큰이 서로 다르게
+                .claim(TYPE_CLAIM, REFRESH)
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(secretKey)
                 .compact();
     }
 
-    public String getEmailFromToken(String token) {
+    public String getUserIdFromToken(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
                 .getSubject();
+    }
+
+    // 토큰 종류 구분 (access 토큰만 API 인증에 쓰고, refresh 토큰은 재발급에만 쓴다)
+    public static final String TYPE_CLAIM = "typ";
+    public static final String ACCESS = "access";
+    public static final String REFRESH = "refresh";
+
+    public boolean isAccessToken(String token) {
+        return ACCESS.equals(getType(token));
+    }
+
+    public boolean isRefreshToken(String token) {
+        return REFRESH.equals(getType(token));
+    }
+
+    private String getType(String token) {
+        try {
+            return Jwts.parser().verifyWith(secretKey).build()
+                    .parseSignedClaims(token).getPayload().get(TYPE_CLAIM, String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public boolean validateToken(String token) {

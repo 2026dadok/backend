@@ -1,0 +1,32 @@
+package dongsim.dadok.time.controller;
+
+import dongsim.dadok.time.domain.dto.ReadTimeRequest;
+import dongsim.dadok.time.domain.dto.ReadTimeResponse;
+import dongsim.dadok.time.domain.dto.TimerPageResponse;
+import dongsim.dadok.time.service.ReadingService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/times")
+@RequiredArgsConstructor
+public class ReadingController {
+
+    private final ReadingService readingService;
+
+    // 독서 시간 저장: 타이머 [책 덮기] → [네] 누르면 호출됨
+    @PostMapping
+    public ResponseEntity<ReadTimeResponse> saveReadTime(@AuthenticationPrincipal String userId,
+                                                         @Valid @RequestBody ReadTimeRequest request) {
+        return ResponseEntity.ok(readingService.saveReadTime(userId, request));
+    }
+
+    // 타이머 페이지: 목표 시간, 오늘 읽은 시간
+    @GetMapping("/timer_page")
+    public ResponseEntity<TimerPageResponse> getTimerPage(@AuthenticationPrincipal String userId) {
+        return ResponseEntity.ok(readingService.getTimerPage(userId));
+    }
+}
