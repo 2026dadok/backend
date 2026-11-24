@@ -5,6 +5,8 @@ server:
 spring:
   application:
     name: dadok-backend # 애플리케이션 이름
+  config:
+    import: optional:file:.env[.properties]
 
   # 파일 업로드 설정
   servlet:
