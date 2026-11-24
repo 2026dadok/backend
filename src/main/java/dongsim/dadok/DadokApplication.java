@@ -19,4 +19,6 @@ public class DadokApplication {
     RestTemplate restTemplate() {
         return new RestTemplate();
     }
+
+
 }
