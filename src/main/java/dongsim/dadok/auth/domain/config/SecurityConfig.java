@@ -32,6 +32,7 @@ public class SecurityConfig {
                         // 로그인 없이 쓰는 경로
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error", "/images/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(
                                 "/auth/login", "/auth/signup", "/auth/refresh", "/auth/logout",
                                 "/auth/email_send", "/auth/email_verify",

@@ -1,12 +1,17 @@
 package dongsim.dadok.review.controller;
 
+import dongsim.dadok.ai.domain.dto.AiInterviewRequest;
+import dongsim.dadok.ai.domain.dto.AiInterviewResponse;
+import dongsim.dadok.review.domain.dto.request.AiReviewSaveRequest;
 import dongsim.dadok.review.domain.dto.request.ReviewCreateRequest;
 import dongsim.dadok.review.domain.dto.request.ReviewUpdateRequest;
+import dongsim.dadok.review.domain.dto.response.AiReviewSaveResponse;
 import dongsim.dadok.review.domain.dto.response.ReviewCardResponse;
 import dongsim.dadok.review.domain.dto.response.ReviewDetailResponse;
 import dongsim.dadok.review.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +25,23 @@ import java.util.List;
 public class ReviewController {
 
     private final ReviewService reviewService;
+
+    @PostMapping("/interview")
+    public ResponseEntity<AiInterviewResponse> interview(
+            @AuthenticationPrincipal String userId,
+            @Valid @RequestBody AiInterviewRequest request
+    ) {
+        return ResponseEntity.ok(reviewService.interview(userId, request));
+    }
+
+    @PostMapping("/generate")
+    public ResponseEntity<AiReviewSaveResponse> generateAndSave(
+            @AuthenticationPrincipal String userId,
+            @Valid @RequestBody AiReviewSaveRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(reviewService.generateAndSave(userId, request));
+    }
 
     @PostMapping
     public ResponseEntity<Long> createReview(

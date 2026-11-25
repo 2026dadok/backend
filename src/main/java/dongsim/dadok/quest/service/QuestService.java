@@ -131,8 +131,19 @@ public class QuestService {
     // 반환값: 이번에 받은 XP 합계
     public int complete(User user, Quest quest, LocalDate periodStart) {
         lockUser(user);
-        if (isCompleted(user, quest, periodStart)) return 0; // 동시 요청으로 이미 완료된 경우
-        userQuestRepository.save(UserQuest.completed(user, quest, periodStart));
+        Optional<UserQuest> existing = userQuestRepository.findByUserAndQuestAndPeriodStart(
+                user, quest, periodStart
+        );
+        if (existing.isPresent()) {
+            UserQuest userQuest = existing.get();
+            if (userQuest.getCompletedAt() != null) {
+                return 0; // 동시 요청이나 이전 요청으로 이미 완료된 경우
+            }
+            userQuest.addProgress(quest.getTargetValue());
+            userQuest.markCompleted();
+        } else {
+            userQuestRepository.save(UserQuest.completed(user, quest, periodStart));
+        }
         int gainedXp = giveXp(user, quest.getRewardXp());
 
         // 일일 퀘스트를 하나 끝낼 때마다 "전체 완료" 검사

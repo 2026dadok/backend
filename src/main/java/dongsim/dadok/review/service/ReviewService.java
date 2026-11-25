@@ -1,12 +1,19 @@
 package dongsim.dadok.review.service;
 
+import dongsim.dadok.ai.client.AiServerClient;
+import dongsim.dadok.ai.domain.dto.AiInterviewRequest;
+import dongsim.dadok.ai.domain.dto.AiInterviewResponse;
+import dongsim.dadok.ai.domain.dto.AiReviewRequest;
+import dongsim.dadok.ai.domain.dto.AiReviewResponse;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.library.personal.domain.entity.PersonalLibraryBook;
 import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
+import dongsim.dadok.review.domain.dto.request.AiReviewSaveRequest;
 import dongsim.dadok.review.domain.dto.request.ReviewCreateRequest;
 import dongsim.dadok.review.domain.dto.request.ReviewUpdateRequest;
 import dongsim.dadok.review.domain.dto.response.ReviewCardResponse;
 import dongsim.dadok.review.domain.dto.response.ReviewDetailResponse;
+import dongsim.dadok.review.domain.dto.response.AiReviewSaveResponse;
 import dongsim.dadok.review.domain.entity.Review;
 import dongsim.dadok.review.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +32,28 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final PersonalLibraryBookRepository personalLibraryBookRepository;
+    private final AiServerClient aiServerClient;
+
+    public AiInterviewResponse interview(String userId, AiInterviewRequest request) {
+        requireLogin(userId);
+        return aiServerClient.interview(request);
+    }
+
+    @Transactional
+    public AiReviewSaveResponse generateAndSave(String userId, AiReviewSaveRequest request) {
+        PersonalLibraryBook libraryBook = requireOwnedLibBook(userId, request.libBookId());
+        AiReviewResponse aiResponse = aiServerClient.generateReview(
+                new AiReviewRequest(request.bookTitle(), request.author(), request.messages())
+        );
+
+        Review savedReview = reviewRepository.save(Review.builder()
+                .libBookId(request.libBookId())
+                .writer(libraryBook.getUser())
+                .review(aiResponse.reviewContent())
+                .build());
+
+        return new AiReviewSaveResponse(savedReview.getId(), savedReview.getReview());
+    }
 
     // 감상문 등록 (모달에서 완료 버튼 클릭 시) - 본인 서재 책에만 쓸 수 있다
     @Transactional

@@ -98,3 +98,6 @@ yes24:
     bestseller-category-id: "001"
     key: "test-key"
 
+ai:
+  server:
+    url: http://localhost:8000
