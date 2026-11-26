@@ -5,6 +5,7 @@ import dongsim.dadok.ai.domain.dto.AiInterviewRequest;
 import dongsim.dadok.ai.domain.dto.AiInterviewResponse;
 import dongsim.dadok.ai.domain.dto.AiReviewRequest;
 import dongsim.dadok.ai.domain.dto.AiReviewResponse;
+import dongsim.dadok.ai.service.AiReviewIdempotencyStore;
 import dongsim.dadok.auth.domain.entity.User;
 import dongsim.dadok.library.personal.domain.entity.PersonalLibraryBook;
 import dongsim.dadok.library.personal.repository.PersonalLibraryBookRepository;
@@ -33,6 +34,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final PersonalLibraryBookRepository personalLibraryBookRepository;
     private final AiServerClient aiServerClient;
+    private final AiReviewIdempotencyStore aiReviewIdempotencyStore;
 
     public AiInterviewResponse interview(String userId, AiInterviewRequest request) {
         requireLogin(userId);
@@ -40,7 +42,23 @@ public class ReviewService {
     }
 
     @Transactional
-    public AiReviewSaveResponse generateAndSave(String userId, AiReviewSaveRequest request) {
+    public AiReviewSaveResponse generateAndSave(
+            String userId,
+            AiReviewSaveRequest request,
+            String idempotencyKey
+    ) {
+        return aiReviewIdempotencyStore.execute(
+                userId,
+                idempotencyKey,
+                request,
+                () -> generateAndSaveOnce(userId, request)
+        );
+    }
+
+    private AiReviewSaveResponse generateAndSaveOnce(
+            String userId,
+            AiReviewSaveRequest request
+    ) {
         PersonalLibraryBook libraryBook = requireOwnedLibBook(userId, request.libBookId());
         AiReviewResponse aiResponse = aiServerClient.generateReview(
                 new AiReviewRequest(request.bookTitle(), request.author(), request.messages())

@@ -37,10 +37,11 @@ public class ReviewController {
     @PostMapping("/generate")
     public ResponseEntity<AiReviewSaveResponse> generateAndSave(
             @AuthenticationPrincipal String userId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody AiReviewSaveRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(reviewService.generateAndSave(userId, request));
+                .body(reviewService.generateAndSave(userId, request, idempotencyKey));
     }
 
     @PostMapping
