@@ -72,8 +72,8 @@ spring:
 logging:
   level:
     root: info # 전체 기본 로그 수준
-    org.hibernate.SQL: debug # Hibernate가 실행하는 SQL 출력
-    org.hibernate.orm.jdbc.bind: trace # Hibernate 6의 SQL 바인딩 값 출력
+    org.hibernate.SQL: warn # Hibernate SQL은 경고 이상만 출력
+    org.hibernate.orm.jdbc.bind: off # Hibernate SQL 바인딩 값은 출력하지 않음
     com.zaxxer.hikari: info # HikariCP의 주요 동작 로그 출력
 
 # JWT 관련 사용자 정의 설정
